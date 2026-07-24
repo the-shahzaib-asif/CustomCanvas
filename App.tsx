@@ -1,45 +1,216 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View, Pressable, Text } from 'react-native';
 import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+  GestureHandlerRootView,
+  Gesture,
+  GestureDetector,
+} from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+} from 'react-native-reanimated';
 
-function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+type ShapeType = 'square' | 'circle' | 'triangle' | 'diamond';
+
+interface ShapeItem {
+  id: string;
+  type: ShapeType;
+}
+
+// ---------- Ek Individual Shape Component ----------
+function Shape({
+  item,
+  selected,
+  onSelect,
+  onDelete,
+}: {
+  item: ShapeItem;
+  selected: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+}) {
+  const x = useSharedValue(100);
+  const y = useSharedValue(150);
+
+  const pan = Gesture.Pan().onChange(e => {
+    x.value += e.changeX;
+    y.value += e.changeY;
+  });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: x.value }, { translateY: y.value }],
+  }));
 
   return (
-    <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
-    </SafeAreaProvider>
+    <GestureDetector gesture={pan}>
+      <Animated.View style={[styles.shapeWrapper, animatedStyle]}>
+        <Pressable onPress={onSelect}>
+          <View
+            style={[
+              item.type === 'square' && styles.square,
+              item.type === 'circle' && styles.circle,
+              item.type === 'triangle' && styles.triangle,
+              item.type === 'diamond' && styles.diamond,
+              selected && styles.selectedBorder,
+            ]}
+          />
+        </Pressable>
+        {selected && (
+          <Pressable style={styles.deleteBtn} onPress={onDelete}>
+            <Text style={styles.deleteText}>X</Text>
+          </Pressable>
+        )}
+      </Animated.View>
+    </GestureDetector>
   );
 }
 
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
+
+export default function App() {
+  const [shapes, setShapes] = useState<ShapeItem[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const addShape = (type: ShapeType) => {
+    const newShape: ShapeItem = { id: Date.now().toString(), type };
+    setShapes(prev => [...prev, newShape]);
+  };
+
+  const deleteShape = (id: string) => {
+    setShapes(prev => prev.filter(s => s.id !== id));
+    setSelectedId(null);
+  };
+
+  const clearCanvas = () => {
+    setShapes([]);
+    setSelectedId(null);
+  };
 
   return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
-    </View>
+    <GestureHandlerRootView style={styles.container}>
+      {/* Sidebar */}
+      <View style={styles.sidebar}>
+        <Pressable style={styles.sidebarBtn} onPress={() => addShape('square')}>
+          <View style={styles.squareIcon} />
+        </Pressable>
+        <Pressable style={styles.sidebarBtn} onPress={() => addShape('circle')}>
+          <View style={styles.circleIcon} />
+        </Pressable>
+        <Pressable style={styles.sidebarBtn} onPress={() => addShape('triangle')}>
+          <View style={styles.triangleIcon} />
+        </Pressable>
+        <Pressable style={styles.sidebarBtn} onPress={() => addShape('diamond')}>
+          <View style={styles.diamondIcon} />
+        </Pressable>
+
+        <Pressable style={styles.clearBtn} onPress={clearCanvas}>
+          <Text> Clear</Text>
+        </Pressable>
+
+      </View>
+
+      {/* Canvas */}
+      <View style={styles.canvas}>
+        {shapes.map(item => (
+          <Shape
+            key={item.id}
+            item={item}
+            selected={selectedId === item.id}
+            onSelect={() => setSelectedId(item.id)}
+            onDelete={() => deleteShape(item.id)}
+          />
+        ))}
+      </View>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
+  container: { flex: 1, flexDirection: 'row', backgroundColor: '#fff' },
 
-export default App;
+  sidebar: {
+    width: 70,
+    backgroundColor: '#e5e7eb',
+    paddingTop: 40,
+    alignItems: 'center',
+    gap: 20,
+  },
+  sidebarBtn: {
+    padding: 10,
+  },
+
+  squareIcon: { width: 30, height: 30, backgroundColor: '#3b82f6' },
+  circleIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#10b981' },
+  triangleIcon: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 15,
+    borderRightWidth: 15,
+    borderBottomWidth: 30,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#f59e0b',
+  },
+  diamondIcon: {
+    width: 30,
+    height: 30,
+    backgroundColor: '#f53333ff',
+    transform: [{ rotate: '45deg' }],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  canvas: { flex: 1, backgroundColor: '#f9fafb' },
+
+  shapeWrapper: { position: 'absolute' },
+
+  square: { width: 60, height: 60, backgroundColor: '#3b82f6', borderRadius: 6 },
+  circle: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#10b981' },
+  triangle: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 30,
+    borderRightWidth: 30,
+    borderBottomWidth: 60,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#f59e0b',
+  },
+  diamond: {
+    width: 60,
+    height: 60,
+
+
+    backgroundColor: '#f53333ff',
+    transform: [{ rotate: '45deg' }],
+    justifyContent: 'center',
+
+  },
+
+
+  selectedBorder: { borderWidth: 2, borderColor: 'red' },
+
+  deleteBtn: {
+    position: 'absolute',
+    top: -12,
+    right: -12,
+    backgroundColor: 'red',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteText: { color: '#fff', fontWeight: 'bold', fontSize: 12 },
+  clearBtn: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    backgroundColor: 'rgba(247, 247, 247, 1)',
+    width: 50,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+
+  }
+});
