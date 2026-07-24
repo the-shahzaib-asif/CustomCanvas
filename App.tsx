@@ -9,6 +9,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated';
+import { Canvas, Path, Skia, SkPath } from '@shopify/react-native-skia';
 
 type ShapeType = 'square' | 'circle' | 'triangle' | 'diamond';
 
@@ -17,7 +18,6 @@ interface ShapeItem {
   type: ShapeType;
 }
 
-// ---------- Ek Individual Shape Component ----------
 function Shape({
   item,
   selected,
@@ -65,14 +65,37 @@ function Shape({
   );
 }
 
-
 export default function App() {
   const [shapes, setShapes] = useState<ShapeItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [tool, setTool] = useState<'shapes' | 'pencil'>('shapes');
+  const [paths, setPaths] = useState<SkPath[]>([]);
+  const [currentPath, setCurrentPath] = useState<SkPath | null>(null);
+
+  const pencilPan = Gesture.Pan()
+    .runOnJS(true)
+    .onStart((e: any) => {
+      const path = Skia.Path.Make();
+      path.moveTo(e.x, e.y);
+      setCurrentPath(path);
+    })
+    .onUpdate((e: any) => {
+      if (currentPath) {
+        currentPath.lineTo(e.x, e.y);
+        setCurrentPath(currentPath.copy());
+      }
+    })
+    .onEnd(() => {
+      if (currentPath) {
+        setPaths(prev => [...prev, currentPath]);
+        setCurrentPath(null);
+      }
+    });
 
   const addShape = (type: ShapeType) => {
     const newShape: ShapeItem = { id: Date.now().toString(), type };
     setShapes(prev => [...prev, newShape]);
+    setTool('shapes');
   };
 
   const deleteShape = (id: string) => {
@@ -82,12 +105,12 @@ export default function App() {
 
   const clearCanvas = () => {
     setShapes([]);
+    setPaths([]);
     setSelectedId(null);
   };
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      {/* Sidebar */}
       <View style={styles.sidebar}>
         <Pressable style={styles.sidebarBtn} onPress={() => addShape('square')}>
           <View style={styles.squareIcon} />
@@ -101,15 +124,42 @@ export default function App() {
         <Pressable style={styles.sidebarBtn} onPress={() => addShape('diamond')}>
           <View style={styles.diamondIcon} />
         </Pressable>
+        <Pressable
+          style={[styles.sidebarBtn, tool === 'pencil' && styles.activeSidebarBtn]}
+          onPress={() => setTool('pencil')}
+        >
+          <Text style={styles.pencilIcon}>✏️</Text>
+        </Pressable>
 
         <Pressable style={styles.clearBtn} onPress={clearCanvas}>
           <Text> Clear</Text>
         </Pressable>
-
       </View>
 
-      {/* Canvas */}
       <View style={styles.canvas}>
+        {tool === 'pencil' ? (
+          <GestureDetector gesture={pencilPan}>
+            <View style={StyleSheet.absoluteFill}>
+              <Canvas style={StyleSheet.absoluteFill}>
+                {paths.map((p, idx) => (
+                  <Path key={idx} path={p} color="#f53333" strokeWidth={4} style="stroke" />
+                ))}
+                {currentPath && (
+                  <Path path={currentPath} color="#f53333" strokeWidth={4} style="stroke" />
+                )}
+              </Canvas>
+            </View>
+          </GestureDetector>
+        ) : (
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <Canvas style={StyleSheet.absoluteFill}>
+              {paths.map((p, idx) => (
+                <Path key={idx} path={p} color="#f53333" strokeWidth={4} style="stroke" />
+              ))}
+            </Canvas>
+          </View>
+        )}
+
         {shapes.map(item => (
           <Shape
             key={item.id}
@@ -134,6 +184,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 20,
   },
+  activeSidebarBtn: {
+    backgroundColor: '#cbd5e1',
+    borderRadius: 8,
+  },
+  pencilIcon: {
+    fontSize: 24,
+  },
+
   sidebarBtn: {
     padding: 10,
   },
@@ -178,14 +236,10 @@ const styles = StyleSheet.create({
   diamond: {
     width: 60,
     height: 60,
-
-
     backgroundColor: '#f53333ff',
     transform: [{ rotate: '45deg' }],
     justifyContent: 'center',
-
   },
-
 
   selectedBorder: { borderWidth: 2, borderColor: 'red' },
 
@@ -211,6 +265,5 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
-
   }
 });
