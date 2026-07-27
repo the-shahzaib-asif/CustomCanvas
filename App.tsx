@@ -72,12 +72,27 @@ interface DrawingPath {
   isEraser: boolean;
 }
 
+const PALETTE_COLORS = ['#f53333', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#000000'];
+
 export default function App() {
   const [shapes, setShapes] = useState<ShapeItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tool, setTool] = useState<'shapes' | 'pencil' | 'eraser'>('shapes');
   const [paths, setPaths] = useState<DrawingPath[]>([]);
   const [currentPath, setCurrentPath] = useState<DrawingPath | null>(null);
+  const [pencilColor, setPencilColor] = useState('#f53333');
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [lastPencilPress, setLastPencilPress] = useState(0);
+
+  const handlePencilPress = () => {
+    const now = Date.now();
+    if (now - lastPencilPress < 300) {
+      setShowColorPicker(prev => !prev);
+    } else {
+      setTool('pencil');
+    }
+    setLastPencilPress(now);
+  };
 
   const pencilPan = Gesture.Pan()
     .runOnJS(true)
@@ -86,7 +101,7 @@ export default function App() {
       path.moveTo(e.x, e.y);
       setCurrentPath({
         path,
-        color: '#f53333',
+        color: pencilColor,
         strokeWidth: 4,
         isEraser: false,
       });
@@ -162,12 +177,35 @@ export default function App() {
         <Pressable style={styles.sidebarBtn} onPress={() => addShape('diamond')}>
           <View style={styles.diamondIcon} />
         </Pressable>
-        <Pressable
-          style={[styles.sidebarBtn, tool === 'pencil' && styles.activeSidebarBtn]}
-          onPress={() => setTool('pencil')}
-        >
-          <Text style={styles.pencilIcon}>✏️</Text>
-        </Pressable>
+        
+        <View style={{ position: 'relative', zIndex: 10 }}>
+          <Pressable
+            style={[styles.sidebarBtn, tool === 'pencil' && styles.activeSidebarBtn]}
+            onPress={handlePencilPress}
+          >
+            <Text style={styles.pencilIcon}>✏️</Text>
+            <View style={[styles.colorDot, { backgroundColor: pencilColor }]} />
+          </Pressable>
+
+          {showColorPicker && (
+            <View style={styles.colorPalette}>
+              {PALETTE_COLORS.map(color => (
+                <Pressable
+                  key={color}
+                  style={[
+                    styles.colorOption,
+                    { backgroundColor: color },
+                    pencilColor === color && styles.selectedColorOption,
+                  ]}
+                  onPress={() => {
+                    setPencilColor(color);
+                    setShowColorPicker(false);
+                  }}
+                />
+              ))}
+            </View>
+          )}
+        </View>
 
         <Pressable
           style={[styles.sidebarBtn, tool === 'eraser' && styles.activeSidebarBtn]}
@@ -339,5 +377,42 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  colorPalette: {
+    position: 'absolute',
+    left: 75,
+    top: 0,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 8,
+    flexDirection: 'row',
+    gap: 8,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 1000,
+  },
+  colorOption: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  selectedColorOption: {
+    borderWidth: 2,
+    borderColor: '#000',
+  },
+  colorDot: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#fff',
   }
 });
