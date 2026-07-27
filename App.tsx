@@ -72,7 +72,7 @@ interface DrawingPath {
   isEraser: boolean;
 }
 
-const PALETTE_COLORS = ['#6366f1', '#ef4444', '#10b981', '#f59e0b', '#ec4899', '#0f172a'];
+const PALETTE_COLORS = ['#6366f1', '#ef4444', '#10b981', '#f59e0b', '#ec4899', '#0f172a', 'rgba(219, 216, 45, 1)'];
 
 export default function App() {
   const [shapes, setShapes] = useState<ShapeItem[]>([]);
@@ -80,7 +80,7 @@ export default function App() {
   const [tool, setTool] = useState<'shapes' | 'pencil' | 'eraser'>('pencil');
   const [paths, setPaths] = useState<DrawingPath[]>([]);
   const [currentPath, setCurrentPath] = useState<DrawingPath | null>(null);
-  const [pencilColor, setPencilColor] = useState('#6366f1');
+  const [pencilColor, setPencilColor] = useState('#000008ff');
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showShapesMenu, setShowShapesMenu] = useState(false);
   const [lastPencilPress, setLastPencilPress] = useState(0);
