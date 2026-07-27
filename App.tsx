@@ -65,24 +65,61 @@ function Shape({
   );
 }
 
+interface DrawingPath {
+  path: SkPath;
+  color: string;
+  strokeWidth: number;
+  isEraser: boolean;
+}
+
 export default function App() {
   const [shapes, setShapes] = useState<ShapeItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [tool, setTool] = useState<'shapes' | 'pencil'>('shapes');
-  const [paths, setPaths] = useState<SkPath[]>([]);
-  const [currentPath, setCurrentPath] = useState<SkPath | null>(null);
+  const [tool, setTool] = useState<'shapes' | 'pencil' | 'eraser'>('shapes');
+  const [paths, setPaths] = useState<DrawingPath[]>([]);
+  const [currentPath, setCurrentPath] = useState<DrawingPath | null>(null);
 
   const pencilPan = Gesture.Pan()
     .runOnJS(true)
     .onStart((e: any) => {
       const path = Skia.Path.Make();
       path.moveTo(e.x, e.y);
-      setCurrentPath(path);
+      setCurrentPath({
+        path,
+        color: '#f53333',
+        strokeWidth: 4,
+        isEraser: false,
+      });
     })
     .onUpdate((e: any) => {
       if (currentPath) {
-        currentPath.lineTo(e.x, e.y);
-        setCurrentPath(currentPath.copy());
+        currentPath.path.lineTo(e.x, e.y);
+        setCurrentPath({ ...currentPath, path: currentPath.path.copy() });
+      }
+    })
+    .onEnd(() => {
+      if (currentPath) {
+        setPaths(prev => [...prev, currentPath]);
+        setCurrentPath(null);
+      }
+    });
+
+  const eraserPan = Gesture.Pan()
+    .runOnJS(true)
+    .onStart((e: any) => {
+      const path = Skia.Path.Make();
+      path.moveTo(e.x, e.y);
+      setCurrentPath({
+        path,
+        color: '#000000',
+        strokeWidth: 24,
+        isEraser: true,
+      });
+    })
+    .onUpdate((e: any) => {
+      if (currentPath) {
+        currentPath.path.lineTo(e.x, e.y);
+        setCurrentPath({ ...currentPath, path: currentPath.path.copy() });
       }
     })
     .onEnd(() => {
@@ -106,6 +143,7 @@ export default function App() {
   const clearCanvas = () => {
     setShapes([]);
     setPaths([]);
+    setCurrentPath(null);
     setSelectedId(null);
   };
 
@@ -131,21 +169,45 @@ export default function App() {
           <Text style={styles.pencilIcon}>✏️</Text>
         </Pressable>
 
+        <Pressable
+          style={[styles.sidebarBtn, tool === 'eraser' && styles.activeSidebarBtn]}
+          onPress={() => setTool('eraser')}
+        >
+          <Text style={styles.eraserIcon}>🧹</Text>
+        </Pressable>
+
         <Pressable style={styles.clearBtn} onPress={clearCanvas}>
           <Text> Clear</Text>
         </Pressable>
       </View>
 
       <View style={styles.canvas}>
-        {tool === 'pencil' ? (
-          <GestureDetector gesture={pencilPan}>
+        {tool === 'pencil' || tool === 'eraser' ? (
+          <GestureDetector gesture={tool === 'pencil' ? pencilPan : eraserPan}>
             <View style={StyleSheet.absoluteFill}>
               <Canvas style={StyleSheet.absoluteFill}>
                 {paths.map((p, idx) => (
-                  <Path key={idx} path={p} color="#f53333" strokeWidth={4} style="stroke" />
+                  <Path
+                    key={idx}
+                    path={p.path}
+                    color={p.color}
+                    strokeWidth={p.strokeWidth}
+                    style="stroke"
+                    strokeCap="round"
+                    strokeJoin="round"
+                    blendMode={p.isEraser ? 'clear' : 'srcOver'}
+                  />
                 ))}
                 {currentPath && (
-                  <Path path={currentPath} color="#f53333" strokeWidth={4} style="stroke" />
+                  <Path
+                    path={currentPath.path}
+                    color={currentPath.color}
+                    strokeWidth={currentPath.strokeWidth}
+                    style="stroke"
+                    strokeCap="round"
+                    strokeJoin="round"
+                    blendMode={currentPath.isEraser ? 'clear' : 'srcOver'}
+                  />
                 )}
               </Canvas>
             </View>
@@ -154,7 +216,16 @@ export default function App() {
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             <Canvas style={StyleSheet.absoluteFill}>
               {paths.map((p, idx) => (
-                <Path key={idx} path={p} color="#f53333" strokeWidth={4} style="stroke" />
+                <Path
+                  key={idx}
+                  path={p.path}
+                  color={p.color}
+                  strokeWidth={p.strokeWidth}
+                  style="stroke"
+                  strokeCap="round"
+                  strokeJoin="round"
+                  blendMode={p.isEraser ? 'clear' : 'srcOver'}
+                />
               ))}
             </Canvas>
           </View>
@@ -189,6 +260,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   pencilIcon: {
+    fontSize: 24,
+  },
+  eraserIcon: {
     fontSize: 24,
   },
 
