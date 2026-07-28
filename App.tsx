@@ -35,6 +35,11 @@ function Shape({
 }) {
   const x = useSharedValue(100);
   const y = useSharedValue(150);
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const rotation = useSharedValue(0);
+  const saveRotation = useSharedValue(0);
+
   const SHAPE_SIZE = 64;
 
   const pan = Gesture.Pan().onChange(e => {
@@ -45,12 +50,35 @@ function Shape({
     y.value = Math.max(0, Math.min(nextY, canvasHeight - SHAPE_SIZE));
   });
 
+  const pinch = Gesture.Pinch()
+    .onUpdate(e => {
+      scale.value = savedScale.value * e.scale;
+    })
+    .onEnd(() => {
+      savedScale.value = scale.value;
+    });
+
+  const rotate = Gesture.Rotation()
+    .onUpdate(e => {
+      rotation.value = saveRotation.value + e.rotation;
+    })
+    .onEnd(() => {
+      saveRotation.value = rotation.value;
+    });
+
+  const composedGesture = Gesture.Simultaneous(pan, pinch, rotate);
+
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: x.value }, { translateY: y.value }],
+    transform: [
+      { translateX: x.value },
+      { translateY: y.value },
+      { scale: scale.value },
+      { rotate: `${rotation.value}rad` },
+    ],
   }));
 
   return (
-    <GestureDetector gesture={pan}>
+    <GestureDetector gesture={composedGesture}>
       <Animated.View style={[styles.shapeWrapper, animatedStyle]}>
         <Pressable onPress={onSelect}>
           <View
@@ -157,6 +185,8 @@ export default function App() {
         setCurrentPath(null);
       }
     });
+
+
 
   const addShape = (type: ShapeType) => {
     const newShape: ShapeItem = { id: Date.now().toString(), type };
@@ -555,7 +585,7 @@ const styles = StyleSheet.create({
   },
   shapeWrapper: {
     position: 'absolute',
-    padding: 4,
+    padding: 40,
   },
   square: {
     width: 64,
