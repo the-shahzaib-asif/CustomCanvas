@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Pressable, Text } from 'react-native';
+import { StyleSheet, View, Pressable, Text, useWindowDimensions } from 'react-native';
 import {
   GestureHandlerRootView,
   Gesture,
@@ -23,18 +23,26 @@ function Shape({
   selected,
   onSelect,
   onDelete,
+  canvasWidth,
+  canvasHeight,
 }: {
   item: ShapeItem;
   selected: boolean;
   onSelect: () => void;
   onDelete: () => void;
+  canvasWidth: number;
+  canvasHeight: number;
 }) {
   const x = useSharedValue(100);
   const y = useSharedValue(150);
+  const SHAPE_SIZE = 64;
 
   const pan = Gesture.Pan().onChange(e => {
-    x.value += e.changeX;
-    y.value += e.changeY;
+    const nextX = x.value + e.changeX;
+    const nextY = y.value + e.changeY;
+
+    x.value = Math.max(0, Math.min(nextX, canvasWidth - SHAPE_SIZE));
+    y.value = Math.max(0, Math.min(nextY, canvasHeight - SHAPE_SIZE));
   });
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -75,6 +83,10 @@ interface DrawingPath {
 const PALETTE_COLORS = ['#6366f1', '#ef4444', '#10b981', '#f59e0b', '#ec4899', '#0f172a', 'rgba(219, 216, 45, 1)'];
 
 export default function App() {
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const canvasWidth = windowWidth - 72;
+  const canvasHeight = windowHeight;
+
   const [shapes, setShapes] = useState<ShapeItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tool, setTool] = useState<'shapes' | 'pencil' | 'eraser'>('pencil');
@@ -347,6 +359,8 @@ export default function App() {
             selected={selectedId === item.id}
             onSelect={() => setSelectedId(item.id)}
             onDelete={() => deleteShape(item.id)}
+            canvasWidth={canvasWidth}
+            canvasHeight={canvasHeight}
           />
         ))}
       </View>
@@ -537,6 +551,7 @@ const styles = StyleSheet.create({
   canvas: {
     flex: 1,
     backgroundColor: '#f8fafc',
+    overflow: 'hidden',
   },
   shapeWrapper: {
     position: 'absolute',
