@@ -9,116 +9,9 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated';
-import { Canvas, Path, Skia, SkPath } from '@shopify/react-native-skia';
-
-type ShapeType = 'square' | 'circle' | 'triangle' | 'diamond';
-
-interface ShapeItem {
-  id: string;
-  type: ShapeType;
-}
-
-function Shape({
-  item,
-  selected,
-  onSelect,
-  onDelete,
-  canvasWidth,
-  canvasHeight,
-}: {
-  item: ShapeItem;
-  selected: boolean;
-  onSelect: () => void;
-  onDelete: () => void;
-  canvasWidth: number;
-  canvasHeight: number;
-}) {
-  const x = useSharedValue(100);
-  const y = useSharedValue(150);
-  const scale = useSharedValue(1);
-  const savedScale = useSharedValue(1);
-  const rotation = useSharedValue(0);
-  const saveRotation = useSharedValue(0);
-
-  const SHAPE_SIZE = 64;
-
-  const pan = Gesture.Pan().onChange(e => {
-    const nextX = x.value + e.changeX;
-    const nextY = y.value + e.changeY;
-
-    x.value = Math.max(0, Math.min(nextX, canvasWidth - SHAPE_SIZE));
-    y.value = Math.max(0, Math.min(nextY, canvasHeight - SHAPE_SIZE));
-  });
-
-  const pinch = Gesture.Pinch()
-    .onUpdate(e => {
-      scale.value = savedScale.value * e.scale;
-    })
-    .onEnd(() => {
-      savedScale.value = scale.value;
-    });
-
-  const rotate = Gesture.Rotation()
-    .onUpdate(e => {
-      rotation.value = saveRotation.value + e.rotation;
-    })
-    .onEnd(() => {
-      saveRotation.value = rotation.value;
-    });
-
-  const composedGesture = Gesture.Simultaneous(pan, pinch, rotate);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: x.value },
-      { translateY: y.value },
-      { scale: scale.value },
-      { rotate: `${rotation.value}rad` },
-    ],
-  }));
-
-  return (
-    <GestureDetector gesture={composedGesture}>
-      <Animated.View style={[styles.shapeWrapper, animatedStyle]}>
-        <Pressable onPress={onSelect}>
-          <View
-            style={[
-              item.type === 'square' && styles.square,
-              item.type === 'circle' && styles.circle,
-              item.type === 'triangle' && styles.triangle,
-              item.type === 'diamond' && styles.diamond,
-              selected && styles.selectedBorder,
-            ]}
-          />
-        </Pressable>
-        {selected && (
-          <View style={styles.selectionContainer} pointerEvents="none">
-            <View style={[styles.cornerDot, styles.topLeftDot]} />
-            <View style={[styles.cornerDot, styles.topRightDot]} />
-            <View style={[styles.cornerDot, styles.bottomLeftDot]} />
-            <View style={[styles.cornerDot, styles.bottomRightDot]} />
-            <View style={styles.rotationConnector} />
-            <View style={styles.rotationHandle}>
-              <Text style={styles.rotationText}>↻</Text>
-            </View>
-          </View>
-        )}
-        {selected && (
-          <Pressable style={styles.deleteBtn} onPress={onDelete}>
-            <Text style={styles.deleteText}>✕</Text>
-          </Pressable>
-        )}
-      </Animated.View>
-    </GestureDetector>
-  );
-}
-
-interface DrawingPath {
-  path: SkPath;
-  color: string;
-  strokeWidth: number;
-  isEraser: boolean;
-}
+import { Skia, SkPath } from '@shopify/react-native-skia';
+import Shape, { ShapeType, ShapeItem } from './components/Shape';
+import DrawingCanvas, { DrawingPath } from './components/DrawingCanvas';
 
 const PALETTE_COLORS = ['#6366f1', '#ef4444', '#10b981', '#f59e0b', '#ec4899', '#0f172a', 'rgba(219, 216, 45, 1)'];
 
@@ -147,56 +40,6 @@ export default function App() {
     }
     setLastPencilPress(now);
   };
-
-  const pencilPan = Gesture.Pan()
-    .runOnJS(true)
-    .onStart((e: any) => {
-      const path = Skia.Path.Make();
-      path.moveTo(e.x, e.y);
-      setCurrentPath({
-        path,
-        color: pencilColor,
-        strokeWidth: 4,
-        isEraser: false,
-      });
-    })
-    .onUpdate((e: any) => {
-      if (currentPath) {
-        currentPath.path.lineTo(e.x, e.y);
-        setCurrentPath({ ...currentPath, path: currentPath.path.copy() });
-      }
-    })
-    .onEnd(() => {
-      if (currentPath) {
-        setPaths(prev => [...prev, currentPath]);
-        setCurrentPath(null);
-      }
-    });
-
-  const eraserPan = Gesture.Pan()
-    .runOnJS(true)
-    .onStart((e: any) => {
-      const path = Skia.Path.Make();
-      path.moveTo(e.x, e.y);
-      setCurrentPath({
-        path,
-        color: '#000000',
-        strokeWidth: 24,
-        isEraser: true,
-      });
-    })
-    .onUpdate((e: any) => {
-      if (currentPath) {
-        currentPath.path.lineTo(e.x, e.y);
-        setCurrentPath({ ...currentPath, path: currentPath.path.copy() });
-      }
-    })
-    .onEnd(() => {
-      if (currentPath) {
-        setPaths(prev => [...prev, currentPath]);
-        setCurrentPath(null);
-      }
-    });
 
   const canvasTap = Gesture.Tap()
     .runOnJS(true)
@@ -353,54 +196,14 @@ export default function App() {
       <View style={styles.canvas}>
         <GestureDetector gesture={canvasTap}>
           <View style={StyleSheet.absoluteFill}>
-            {tool === 'pencil' || tool === 'eraser' ? (
-              <GestureDetector gesture={tool === 'pencil' ? pencilPan : eraserPan}>
-                <View style={StyleSheet.absoluteFill}>
-                  <Canvas style={StyleSheet.absoluteFill}>
-                    {paths.map((p, idx) => (
-                      <Path
-                        key={idx}
-                        path={p.path}
-                        color={p.color}
-                        strokeWidth={p.strokeWidth}
-                        style="stroke"
-                        strokeCap="round"
-                        strokeJoin="round"
-                        blendMode={p.isEraser ? 'clear' : 'srcOver'}
-                      />
-                    ))}
-                    {currentPath && (
-                      <Path
-                        path={currentPath.path}
-                        color={currentPath.color}
-                        strokeWidth={currentPath.strokeWidth}
-                        style="stroke"
-                        strokeCap="round"
-                        strokeJoin="round"
-                        blendMode={currentPath.isEraser ? 'clear' : 'srcOver'}
-                      />
-                    )}
-                  </Canvas>
-                </View>
-              </GestureDetector>
-            ) : (
-              <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                <Canvas style={StyleSheet.absoluteFill}>
-                  {paths.map((p, idx) => (
-                    <Path
-                      key={idx}
-                      path={p.path}
-                      color={p.color}
-                      strokeWidth={p.strokeWidth}
-                      style="stroke"
-                      strokeCap="round"
-                      strokeJoin="round"
-                      blendMode={p.isEraser ? 'clear' : 'srcOver'}
-                    />
-                  ))}
-                </Canvas>
-              </View>
-            )}
+            <DrawingCanvas
+              paths={paths}
+              setPaths={setPaths}
+              currentPath={currentPath}
+              setCurrentPath={setCurrentPath}
+              tool={tool}
+              pencilColor={pencilColor}
+            />
           </View>
         </GestureDetector>
 
@@ -550,86 +353,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontWeight: '600',
   },
-  selectionContainer: {
-    position: 'absolute',
-    top: 40,
-    left: 40,
-    width: 64,
-    height: 64,
-  },
-  // Dashed border around the shape
-  selectionBorder: {
-    position: 'absolute',
-    top: -2,
-    left: -2,
-    right: -2,
-    bottom: -2,
-    borderWidth: 1.5,
-    borderColor: '#6366f1',
-    borderStyle: 'dashed',
-    borderRadius: 8,
-  },
-  // Small circle dots on each corner
-  cornerDot: {
-    position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#6366f1',
-    borderWidth: 1,
-    borderColor: '#ffffff',
-  },
-  topLeftDot: {
-    top: -5,
-    left: -5,
-  },
-  topRightDot: {
-    top: -5,
-    right: -5,
-  },
-  bottomLeftDot: {
-    bottom: -5,
-    left: -5,
-  },
-  bottomRightDot: {
-    bottom: -5,
-    right: -5,
-  },
-  // Vertical line connecting the shape border to the rotation handle
-  rotationConnector: {
-    position: 'absolute',
-    top: -16,
-    left: '50%',
-    width: 1.5,
-    height: 16,
-    backgroundColor: '#6366f1',
-  },
-  // Circular handle for rotation containing the emoji/symbol
-  rotationHandle: {
-    position: 'absolute',
-    top: -32,
-    left: '50%',
-    marginLeft: -10, // Center the 20px wide handle
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#6366f1',
-    borderWidth: 1,
-    borderColor: '#ffffff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  rotationText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: 'bold',
-    lineHeight: 12,
-  },
   shapePreview: {
     width: 24,
     height: 24,
@@ -684,80 +407,5 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
     overflow: 'hidden',
-  },
-  shapeWrapper: {
-    position: 'absolute',
-    padding: 40,
-  },
-  square: {
-    width: 64,
-    height: 64,
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  circle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#10b981',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  triangle: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 32,
-    borderRightWidth: 32,
-    borderBottomWidth: 64,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderBottomColor: '#f59e0b',
-  },
-  diamond: {
-    width: 64,
-    height: 64,
-    backgroundColor: '#ec4899',
-    transform: [{ rotate: '45deg' }],
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  selectedBorder: {
-    borderWidth: 2,
-    borderColor: '#6366f1',
-  },
-  deleteBtn: {
-    position: 'absolute',
-    top: 30,
-    right: 30,
-    backgroundColor: '#0f172a',
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-    elevation: 4,
-  },
-  deleteText: {
-    color: '#ef4444',
-    fontWeight: 'bold',
-    fontSize: 12,
   },
 });
