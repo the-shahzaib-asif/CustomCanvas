@@ -10,9 +10,9 @@ import Animated, {
   useAnimatedStyle,
 } from 'react-native-reanimated';
 import { Skia, SkPath } from '@shopify/react-native-skia';
-import Shape, { ShapeType, ShapeItem } from './components/Shape';
+import Shape, { ShapeType, ShapeItem } from './components/CanvasElement';
 import DrawingCanvas, { DrawingPath } from './components/DrawingCanvas';
-
+import { launchImageLibrary } from 'react-native-image-picker';
 const PALETTE_COLORS = ['#6366f1', '#ef4444', '#10b981', '#f59e0b', '#ec4899', '#0f172a', 'rgba(219, 216, 45, 1)'];
 
 export default function App() {
@@ -55,172 +55,209 @@ export default function App() {
     setTool('shapes');
   };
 
-  const deleteShape = (id: string) => {
-    setShapes(prev => prev.filter(s => s.id !== id));
-    setSelectedId(null);
+  const addImage = () => {
+    launchImageLibrary(
+      {
+        mediaType: 'photo',
+        quality: 1,
+      },
+      response => {
+        if (response.didCancel || response.errorMessage) {
+          return;
+
+        }
+        const uri = response.assets?.[0]?.uri;
+        if (uri) {
+          const newImage: ShapeItem = {
+            id: Date.now().toString(),
+            type: 'Image',
+            imageUri: uri,
+          };
+          setShapes(prev => [...prev, newImage]);
+          setTool('shapes');
+        }
+      }
+    );
   };
 
-  const clearCanvas = () => {
-    setShapes([]);
-    setPaths([]);
-    setCurrentPath(null);
-    setSelectedId(null);
-  };
+const deleteShape = (id: string) => {
+  setShapes(prev => prev.filter(s => s.id !== id));
+  setSelectedId(null);
+};
 
-  return (
-    <GestureHandlerRootView style={styles.container}>
-      {/* Sidebar Navigation */}
-      <View style={styles.sidebar}>
-        <View style={styles.topLogo}>
-          <Text style={styles.logoText}>🎨</Text>
-        </View>
+const clearCanvas = () => {
+  setShapes([]);
+  setPaths([]);
+  setCurrentPath(null);
+  setSelectedId(null);
+};
 
-        {/* Pencil Button & Color Popover */}
-        <View style={styles.relativeWrapper}>
-          <Pressable
-            style={[styles.sidebarBtn, tool === 'pencil' && styles.activeSidebarBtn]}
-            onPress={handlePencilPress}
-          >
-            <Text style={styles.sidebarEmoji}>✏️</Text>
-            <Text style={styles.sidebarLabel}>Pencil</Text>
-            <View style={[styles.colorDot, { backgroundColor: pencilColor }]} />
-          </Pressable>
+return (
+  <GestureHandlerRootView style={styles.container}>
+    {/* Sidebar Navigation */}
+    <View style={styles.sidebar}>
+      <View style={styles.topLogo}>
+        <Text style={styles.logoText}>🎨</Text>
+      </View>
 
-          {showColorPicker && (
-            <View style={styles.colorPalette}>
-              <Text style={styles.popoverTitle}>Brush Color</Text>
-              <View style={styles.popoverRow}>
-                {PALETTE_COLORS.map(color => (
-                  <Pressable
-                    key={color}
-                    style={[
-                      styles.colorOption,
-                      { backgroundColor: color },
-                      pencilColor === color && styles.selectedColorOption,
-                    ]}
-                    onPress={() => {
-                      setPencilColor(color);
-                      setShowColorPicker(false);
-                    }}
-                  />
-                ))}
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* Eraser Button */}
+      {/* Pencil Button & Color Popover */}
+      <View style={styles.relativeWrapper}>
         <Pressable
-          style={[styles.sidebarBtn, tool === 'eraser' && styles.activeSidebarBtn]}
+          style={[styles.sidebarBtn, tool === 'pencil' && styles.activeSidebarBtn]}
+          onPress={handlePencilPress}
+        >
+          <Text style={styles.sidebarEmoji}>✏️</Text>
+          <Text style={styles.sidebarLabel}>Pencil</Text>
+          <View style={[styles.colorDot, { backgroundColor: pencilColor }]} />
+        </Pressable>
+
+        {showColorPicker && (
+          <View style={styles.colorPalette}>
+            <Text style={styles.popoverTitle}>Brush Color</Text>
+            <View style={styles.popoverRow}>
+              {PALETTE_COLORS.map(color => (
+                <Pressable
+                  key={color}
+                  style={[
+                    styles.colorOption,
+                    { backgroundColor: color },
+                    pencilColor === color && styles.selectedColorOption,
+                  ]}
+                  onPress={() => {
+                    setPencilColor(color);
+                    setShowColorPicker(false);
+                  }}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+      </View>
+
+
+
+      {/* Eraser Button */}
+      <Pressable
+        style={[styles.sidebarBtn, tool === 'eraser' && styles.activeSidebarBtn]}
+        onPress={() => {
+          setTool('eraser');
+          setShowShapesMenu(false);
+          setShowColorPicker(false);
+        }}
+      >
+        <Text style={styles.sidebarEmoji}>🧹</Text>
+        <Text style={styles.sidebarLabel}>Eraser</Text>
+      </Pressable>
+
+      {/* Shapes Menu Button & Popover */}
+      <View style={styles.relativeWrapper}>
+        <Pressable
+          style={[styles.sidebarBtn, tool === 'shapes' && styles.activeSidebarBtn]}
           onPress={() => {
-            setTool('eraser');
-            setShowShapesMenu(false);
+            setTool('shapes');
             setShowColorPicker(false);
+            setShowShapesMenu(prev => !prev);
           }}
         >
-          <Text style={styles.sidebarEmoji}>🧹</Text>
-          <Text style={styles.sidebarLabel}>Eraser</Text>
+          <Text style={styles.sidebarEmoji}>⬡</Text>
+          <Text style={styles.sidebarLabel}>Shapes</Text>
         </Pressable>
 
-        {/* Shapes Menu Button & Popover */}
-        <View style={styles.relativeWrapper}>
-          <Pressable
-            style={[styles.sidebarBtn, tool === 'shapes' && styles.activeSidebarBtn]}
-            onPress={() => {
-              setTool('shapes');
-              setShowColorPicker(false);
-              setShowShapesMenu(prev => !prev);
-            }}
-          >
-            <Text style={styles.sidebarEmoji}>⬡</Text>
-            <Text style={styles.sidebarLabel}>Shapes</Text>
-          </Pressable>
-
-          {showShapesMenu && (
-            <View style={styles.shapesPopover}>
-              <Text style={styles.popoverTitle}>Add Shape</Text>
-              <View style={styles.shapesRow}>
-                <Pressable
-                  style={styles.shapeOptionBtn}
-                  onPress={() => {
-                    addShape('square');
-                    setShowShapesMenu(false);
-                  }}
-                >
-                  <View style={[styles.shapePreview, styles.squarePreview]} />
-                  <Text style={styles.shapeOptionText}>Square</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.shapeOptionBtn}
-                  onPress={() => {
-                    addShape('circle');
-                    setShowShapesMenu(false);
-                  }}
-                >
-                  <View style={[styles.shapePreview, styles.circlePreview]} />
-                  <Text style={styles.shapeOptionText}>Circle</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.shapeOptionBtn}
-                  onPress={() => {
-                    addShape('triangle');
-                    setShowShapesMenu(false);
-                  }}
-                >
-                  <View style={[styles.shapePreview, styles.trianglePreview]} />
-                  <Text style={styles.shapeOptionText}>Triangle</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.shapeOptionBtn}
-                  onPress={() => {
-                    addShape('diamond');
-                    setShowShapesMenu(false);
-                  }}
-                >
-                  <View style={[styles.shapePreview, styles.diamondPreview]} />
-                  <Text style={styles.shapeOptionText}>Diamond</Text>
-                </Pressable>
-              </View>
+        {showShapesMenu && (
+          <View style={styles.shapesPopover}>
+            <Text style={styles.popoverTitle}>Add Shape</Text>
+            <View style={styles.shapesRow}>
+              <Pressable
+                style={styles.shapeOptionBtn}
+                onPress={() => {
+                  addShape('square');
+                  setShowShapesMenu(false);
+                }}
+              >
+                <View style={[styles.shapePreview, styles.squarePreview]} />
+                <Text style={styles.shapeOptionText}>Square</Text>
+              </Pressable>
+              <Pressable
+                style={styles.shapeOptionBtn}
+                onPress={() => {
+                  addShape('circle');
+                  setShowShapesMenu(false);
+                }}
+              >
+                <View style={[styles.shapePreview, styles.circlePreview]} />
+                <Text style={styles.shapeOptionText}>Circle</Text>
+              </Pressable>
+              <Pressable
+                style={styles.shapeOptionBtn}
+                onPress={() => {
+                  addShape('triangle');
+                  setShowShapesMenu(false);
+                }}
+              >
+                <View style={[styles.shapePreview, styles.trianglePreview]} />
+                <Text style={styles.shapeOptionText}>Triangle</Text>
+              </Pressable>
+              <Pressable
+                style={styles.shapeOptionBtn}
+                onPress={() => {
+                  addShape('diamond');
+                  setShowShapesMenu(false);
+                }}
+              >
+                <View style={[styles.shapePreview, styles.diamondPreview]} />
+                <Text style={styles.shapeOptionText}>Diamond</Text>
+              </Pressable>
             </View>
-          )}
-        </View>
-
-        {/* Clear Button */}
-        <Pressable style={styles.clearBtn} onPress={clearCanvas}>
-          <Text style={styles.clearEmoji}>🗑️</Text>
-          <Text style={styles.clearText}>Clear</Text>
-        </Pressable>
-      </View>
-
-      {/* Main Canvas Workspace */}
-      <View style={styles.canvas}>
-        <GestureDetector gesture={canvasTap}>
-          <View style={StyleSheet.absoluteFill}>
-            <DrawingCanvas
-              paths={paths}
-              setPaths={setPaths}
-              currentPath={currentPath}
-              setCurrentPath={setCurrentPath}
-              tool={tool}
-              pencilColor={pencilColor}
-            />
           </View>
-        </GestureDetector>
-
-        {shapes.map(item => (
-          <Shape
-            key={item.id}
-            item={item}
-            selected={selectedId === item.id}
-            onSelect={() => setSelectedId(item.id)}
-            onDelete={() => deleteShape(item.id)}
-            canvasWidth={canvasWidth}
-            canvasHeight={canvasHeight}
-          />
-        ))}
+        )}
       </View>
-    </GestureHandlerRootView>
-  );
+
+      {/* Image Button */}
+      <Pressable
+        style={styles.sidebarBtn}
+        onPress={addImage}
+      >
+        <Text style={styles.sidebarEmoji}>🖼️</Text>
+        <Text style={styles.sidebarLabel}>Image</Text>
+      </Pressable>
+
+
+      {/* Clear Button */}
+      <Pressable style={styles.clearBtn} onPress={clearCanvas}>
+        <Text style={styles.clearEmoji}>🗑️</Text>
+        <Text style={styles.clearText}>Clear</Text>
+      </Pressable>
+    </View>
+
+    {/* Main Canvas Workspace */}
+    <View style={styles.canvas}>
+      <GestureDetector gesture={canvasTap}>
+        <View style={StyleSheet.absoluteFill}>
+          <DrawingCanvas
+            paths={paths}
+            setPaths={setPaths}
+            currentPath={currentPath}
+            setCurrentPath={setCurrentPath}
+            tool={tool}
+            pencilColor={pencilColor}
+          />
+        </View>
+      </GestureDetector>
+
+      {shapes.map(item => (
+        <Shape
+          key={item.id}
+          item={item}
+          selected={selectedId === item.id}
+          onSelect={() => setSelectedId(item.id)}
+          onDelete={() => deleteShape(item.id)}
+          canvasWidth={canvasWidth}
+          canvasHeight={canvasHeight}
+        />
+      ))}
+    </View>
+  </GestureHandlerRootView>
+);
 }
 
 const styles = StyleSheet.create({

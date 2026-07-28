@@ -1,16 +1,17 @@
 import React from 'react';
-import { StyleSheet, View, Pressable, Text } from 'react-native';
+import { StyleSheet, View, Pressable, Text, Image } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated';
 
-export type ShapeType = 'square' | 'circle' | 'triangle' | 'diamond';
+export type ShapeType = 'square' | 'circle' | 'triangle' | 'diamond' | 'Image';
 
 export interface ShapeItem {
   id: string;
   type: ShapeType;
+  imageUri?: string;
 }
 
 export default function Shape({
@@ -76,16 +77,29 @@ export default function Shape({
     <GestureDetector gesture={composedGesture}>
       <Animated.View style={[styles.shapeWrapper, animatedStyle]}>
         <Pressable onPress={onSelect}>
-          <View
-            style={[
-              item.type === 'square' && styles.square,
-              item.type === 'circle' && styles.circle,
-              item.type === 'triangle' && styles.triangle,
-              item.type === 'diamond' && styles.diamond,
-              selected && styles.selectedBorder,
-            ]}
-          />
+          {item.type === 'Image' ?
+
+            (<Image
+              source={{ uri: item.imageUri }}
+              style={[styles.imageElement, selected && styles.selectedBorder]}
+            />
+
+            ) : (
+              <View
+                style={[
+                  item.type === 'square' && styles.square,
+                  item.type === 'circle' && styles.circle,
+                  item.type === 'triangle' && styles.triangle,
+                  item.type === 'diamond' && styles.diamond,
+                  selected && styles.selectedBorder,
+                ]}
+              />
+
+            )
+
+          }
         </Pressable>
+
         {selected && (
           <View style={styles.selectionContainer} pointerEvents="none">
             <View style={[styles.cornerDot, styles.topLeftDot]} />
@@ -167,6 +181,12 @@ const styles = StyleSheet.create({
     left: 40,
     width: 64,
     height: 64,
+  },
+  imageElement: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
+    resizeMode: 'cover',
   },
   cornerDot: {
     position: 'absolute',
