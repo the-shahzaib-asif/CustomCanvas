@@ -96,6 +96,27 @@ function Shape({
             <Text style={styles.deleteText}>✕</Text>
           </Pressable>
         )}
+        {
+          selected && (
+            <View style={styles.selectionContainer} pointerEvents='none'>
+
+              <View
+                style={styles.selectionBorder} />
+              <View style={[styles.cornerDot, styles.topLeftDot]} />
+              <View style={[styles.cornerDot, styles.topRightDot]} />
+              <View style={[styles.cornerDot, styles.bottomLeftDot]} />
+              <View style={[styles.cornerDot, styles.bottomRightDot]} />
+              <View style={styles.rotationConnector} />
+              <View style={styles.rotationHandle}>
+                <Text style={styles.rotationText}>↻</Text>
+              </View>
+
+
+            </View>
+
+          )
+
+        }
       </Animated.View>
     </GestureDetector>
   );
@@ -184,6 +205,12 @@ export default function App() {
         setPaths(prev => [...prev, currentPath]);
         setCurrentPath(null);
       }
+    });
+
+  const canvasTap = Gesture.Tap()
+    .runOnJS(true)
+    .onStart(() => {
+      setSelectedId(null);
     });
 
 
@@ -332,10 +359,40 @@ export default function App() {
       </View>
 
       {/* Main Canvas Workspace */}
-      <View style={styles.canvas}>
-        {tool === 'pencil' || tool === 'eraser' ? (
-          <GestureDetector gesture={tool === 'pencil' ? pencilPan : eraserPan}>
-            <View style={StyleSheet.absoluteFill}>
+      <GestureDetector gesture={canvasTap}>
+        <View style={styles.canvas}>
+          {tool === 'pencil' || tool === 'eraser' ? (
+            <GestureDetector gesture={tool === 'pencil' ? pencilPan : eraserPan}>
+              <View style={StyleSheet.absoluteFill}>
+                <Canvas style={StyleSheet.absoluteFill}>
+                  {paths.map((p, idx) => (
+                    <Path
+                      key={idx}
+                      path={p.path}
+                      color={p.color}
+                      strokeWidth={p.strokeWidth}
+                      style="stroke"
+                      strokeCap="round"
+                      strokeJoin="round"
+                      blendMode={p.isEraser ? 'clear' : 'srcOver'}
+                    />
+                  ))}
+                  {currentPath && (
+                    <Path
+                      path={currentPath.path}
+                      color={currentPath.color}
+                      strokeWidth={currentPath.strokeWidth}
+                      style="stroke"
+                      strokeCap="round"
+                      strokeJoin="round"
+                      blendMode={currentPath.isEraser ? 'clear' : 'srcOver'}
+                    />
+                  )}
+                </Canvas>
+              </View>
+            </GestureDetector>
+          ) : (
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
               <Canvas style={StyleSheet.absoluteFill}>
                 {paths.map((p, idx) => (
                   <Path
@@ -349,51 +406,23 @@ export default function App() {
                     blendMode={p.isEraser ? 'clear' : 'srcOver'}
                   />
                 ))}
-                {currentPath && (
-                  <Path
-                    path={currentPath.path}
-                    color={currentPath.color}
-                    strokeWidth={currentPath.strokeWidth}
-                    style="stroke"
-                    strokeCap="round"
-                    strokeJoin="round"
-                    blendMode={currentPath.isEraser ? 'clear' : 'srcOver'}
-                  />
-                )}
               </Canvas>
             </View>
-          </GestureDetector>
-        ) : (
-          <View style={StyleSheet.absoluteFill} pointerEvents="none">
-            <Canvas style={StyleSheet.absoluteFill}>
-              {paths.map((p, idx) => (
-                <Path
-                  key={idx}
-                  path={p.path}
-                  color={p.color}
-                  strokeWidth={p.strokeWidth}
-                  style="stroke"
-                  strokeCap="round"
-                  strokeJoin="round"
-                  blendMode={p.isEraser ? 'clear' : 'srcOver'}
-                />
-              ))}
-            </Canvas>
-          </View>
-        )}
+          )}
 
-        {shapes.map(item => (
-          <Shape
-            key={item.id}
-            item={item}
-            selected={selectedId === item.id}
-            onSelect={() => setSelectedId(item.id)}
-            onDelete={() => deleteShape(item.id)}
-            canvasWidth={canvasWidth}
-            canvasHeight={canvasHeight}
-          />
-        ))}
-      </View>
+          {shapes.map(item => (
+            <Shape
+              key={item.id}
+              item={item}
+              selected={selectedId === item.id}
+              onSelect={() => setSelectedId(item.id)}
+              onDelete={() => deleteShape(item.id)}
+              canvasWidth={canvasWidth}
+              canvasHeight={canvasHeight}
+            />
+          ))}
+        </View>
+      </GestureDetector>
     </GestureHandlerRootView>
   );
 }
@@ -527,6 +556,86 @@ const styles = StyleSheet.create({
     fontSize: 9,
     marginTop: 6,
     fontWeight: '600',
+  },
+  selectionContainer: {
+    position: 'absolute',
+    top: 40,
+    left: 40,
+    width: 64,
+    height: 64,
+  },
+  // Dashed border around the shape
+  selectionBorder: {
+    position: 'absolute',
+    top: -2,
+    left: -2,
+    right: -2,
+    bottom: -2,
+    borderWidth: 1.5,
+    borderColor: '#6366f1',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+  },
+  // Small circle dots on each corner
+  cornerDot: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#6366f1',
+    borderWidth: 1,
+    borderColor: '#ffffff',
+  },
+  topLeftDot: {
+    top: -5,
+    left: -5,
+  },
+  topRightDot: {
+    top: -5,
+    right: -5,
+  },
+  bottomLeftDot: {
+    bottom: -5,
+    left: -5,
+  },
+  bottomRightDot: {
+    bottom: -5,
+    right: -5,
+  },
+  // Vertical line connecting the shape border to the rotation handle
+  rotationConnector: {
+    position: 'absolute',
+    top: -16,
+    left: '50%',
+    width: 1.5,
+    height: 16,
+    backgroundColor: '#6366f1',
+  },
+  // Circular handle for rotation containing the emoji/symbol
+  rotationHandle: {
+    position: 'absolute',
+    top: -32,
+    left: '50%',
+    marginLeft: -10, // Center the 20px wide handle
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#6366f1',
+    borderWidth: 1,
+    borderColor: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  rotationText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: 'bold',
+    lineHeight: 12,
   },
   shapePreview: {
     width: 24,
