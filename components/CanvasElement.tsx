@@ -6,12 +6,14 @@ import Animated, {
   useAnimatedStyle,
 } from 'react-native-reanimated';
 
-export type ShapeType = 'square' | 'circle' | 'triangle' | 'diamond' | 'Image';
+export type ShapeType = 'square' | 'circle' | 'triangle' | 'diamond' | 'Image' | 'table';
 
 export interface ShapeItem {
   id: string;
   type: ShapeType;
   imageUri?: string;
+  seaterType?: 2 | 4 | 6 | 8 | 12;
+  tableNumber?: string;
 }
 
 export default function Shape({
@@ -83,6 +85,9 @@ export default function Shape({
               source={{ uri: item.imageUri }}
               style={[styles.imageElement, selected && styles.selectedBorder]}
             />
+            ) : item.type === 'table' ? (
+              <TableWithChairs seaterType={item.seaterType || 4} tableNumber={item.tableNumber} selected={selected} />
+
 
             ) : (
               <View

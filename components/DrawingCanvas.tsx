@@ -27,7 +27,7 @@ export default function DrawingCanvas({
   tool,
   pencilColor,
 }: DrawingCanvasProps) {
-  
+
   // Handlers for drawing gestures
   const pencilPan = Gesture.Pan()
     .runOnJS(true)
