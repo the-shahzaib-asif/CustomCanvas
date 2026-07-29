@@ -5,6 +5,8 @@ import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  withTiming,
+  withSpring,
 } from 'react-native-reanimated';
 import { colors, sizes, radius } from '../theme';
 
@@ -43,14 +45,18 @@ export default function Shape({
   const rotation = useSharedValue(0);
   const savedRotation = useSharedValue(0);
 
-  const pan = Gesture.Pan().onChange(e => {
-    const nextX = x.value + e.changeX;
-    const nextY = y.value + e.changeY;
-    x.value = Math.max(0, Math.min(nextX, canvasWidth - sizes.shapeBase));
-    y.value = Math.max(0, Math.min(nextY, canvasHeight - sizes.shapeBase));
-  });
+  const pan = Gesture.Pan()
+    .enabled(selected)
+    .onChange(e => {
+      const nextX = x.value + e.changeX;
+      const nextY = y.value + e.changeY;
+      const margin = 28;
+      x.value = Math.max(margin, Math.min(nextX, canvasWidth - sizes.shapeBase - margin));
+      y.value = Math.max(margin, Math.min(nextY, canvasHeight - sizes.shapeBase - margin));
+    });
 
   const pinch = Gesture.Pinch()
+    .enabled(selected)
     .onUpdate(e => {
       const next = savedScale.value * e.scale;
       scale.value = Math.max(sizes.minScale, Math.min(next, sizes.maxScale));
@@ -60,6 +66,7 @@ export default function Shape({
     });
 
   const rotate = Gesture.Rotation()
+    .enabled(selected)
     .onUpdate(e => {
       rotation.value = savedRotation.value + e.rotation;
     })
@@ -67,7 +74,34 @@ export default function Shape({
       savedRotation.value = rotation.value;
     });
 
-  const composedGesture = Gesture.Simultaneous(pan, pinch, rotate);
+  const tapToSelect = Gesture.Tap()
+    .runOnJS(true)
+    .onEnd(() => {
+      onSelect();
+    });
+
+  const composedGesture = selected ? Gesture.Simultaneous(pan, pinch, rotate) : tapToSelect;
+
+
+  const handleUpScale = () => {
+    const next = Math.min(scale.value + 0.15, sizes.maxScale);
+    scale.value = withTiming(next, { duration: 150 });
+    savedScale.value = next;
+  };
+
+  const handleDownScale = () => {
+    const next = Math.max(scale.value - 0.15, sizes.minScale);
+    scale.value = withTiming(next, { duration: 150 });
+    savedScale.value = next;
+  };
+
+
+  const handleRotateButton = () => {
+    const next = rotation.value + Math.PI / 4; // Rotate 45 degrees
+    rotation.value = withTiming(next, { duration: 150 });
+    savedRotation.value = next;
+  };
+
 
   const wrapperStyle = useAnimatedStyle(() => ({
     transform: [
@@ -81,58 +115,74 @@ export default function Shape({
     transform: [{ scale: scale.value }],
   }));
 
-  const controlsStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 / scale.value }],
-  }));
+  // Dynamic toolbar style to flip position if shape is near the top boundary
+  // positioned absolutely relative to the parent canvas (never scales or rotates)
+  const toolbarStyle = useAnimatedStyle(() => {
+    const showBelow = y.value < 60;
+    const targetY = showBelow ? y.value + sizes.shapeBase + 12 : y.value - 48;
+    return {
+      transform: [
+        { translateX: x.value + (sizes.shapeBase / 2) - 68 }, // Center it horizontally (toolbar width is ~136px)
+        { translateY: withSpring(targetY, { damping: 15 }) },
+      ],
+    };
+  });
 
   return (
     <GestureDetector gesture={composedGesture}>
-      <Animated.View style={[styles.wrapper, wrapperStyle]}>
-        <Animated.View style={contentStyle}>
-          <Pressable onPress={onSelect}>
-            {item.type === 'Image' ? (
-              <Image
-                source={{ uri: item.imageUri }}
-                style={[styles.imageElement, selected && styles.selectedBorder]}
-              />
-            ) : item.type === 'table' ? (
-              <TableWithChairs
-                seaterType={item.seaterType || 4}
-                tableNumber={item.tableNumber}
-                selected={selected}
-              />
-            ) : (
-              <View
-                style={[
-                  item.type === 'square' && styles.square,
-                  item.type === 'circle' && styles.circle,
-                  item.type === 'triangle' && styles.triangle,
-                  item.type === 'diamond' && styles.diamond,
-                  selected && styles.selectedBorder,
-                ]}
-              />
-            )}
-          </Pressable>
+      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        
+        {/* Translated, Scaled, and Rotated Shape content */}
+        <Animated.View style={[styles.wrapper, wrapperStyle]}>
+          {/* Selection dashed outline around the shape */}
+          {selected && <View style={styles.selectionOutline} pointerEvents="none" />}
+
+          <Animated.View style={contentStyle}>
+            <Pressable onPress={onSelect}>
+              {item.type === 'Image' ? (
+                <Image
+                  source={{ uri: item.imageUri }}
+                  style={[styles.imageElement, selected && styles.selectedBorder]}
+                />
+              ) : item.type === 'table' ? (
+                <TableWithChairs
+                  seaterType={item.seaterType || 4}
+                  tableNumber={item.tableNumber}
+                  selected={selected}
+                />
+              ) : (
+                <View
+                  style={[
+                    item.type === 'square' && styles.square,
+                    item.type === 'circle' && styles.circle,
+                    item.type === 'triangle' && styles.triangle,
+                    item.type === 'diamond' && styles.diamond,
+                    selected && styles.selectedBorder,
+                  ]}
+                />
+              )}
+            </Pressable>
+          </Animated.View>
         </Animated.View>
 
+        {/* Flat, Upright Action Toolbar (sits outside the rotation View) */}
         {selected && (
-          <Animated.View style={[styles.controlsLayer, controlsStyle]} pointerEvents="box-none">
-            <View style={styles.selectionBox} pointerEvents="none">
-              <View style={[styles.cornerDot, styles.topLeftDot]} />
-              <View style={[styles.cornerDot, styles.topRightDot]} />
-              <View style={[styles.cornerDot, styles.bottomLeftDot]} />
-              <View style={[styles.cornerDot, styles.bottomRightDot]} />
-              <View style={styles.rotationConnector} />
-              <View style={styles.rotationHandle}>
-                <Text style={styles.rotationText}>↻</Text>
-              </View>
-            </View>
-            <Pressable style={styles.deleteBtn} onPress={onDelete}>
-              <Text style={styles.deleteText}>✕</Text>
+          <Animated.View style={[styles.toolbarAbsolute, toolbarStyle]} pointerEvents="box-none">
+            <Pressable style={styles.toolbarBtn} onPress={handleUpScale}>
+              <Text style={styles.toolbarBtnText}>➕</Text>
+            </Pressable>
+            <Pressable style={styles.toolbarBtn} onPress={handleDownScale}>
+              <Text style={styles.toolbarBtnText}>➖</Text>
+            </Pressable>
+            <Pressable style={styles.toolbarBtn} onPress={handleRotateButton}>
+              <Text style={styles.toolbarBtnText}>🔄</Text>
+            </Pressable>
+            <Pressable style={[styles.toolbarBtn, styles.deleteBtnSpec]} onPress={onDelete}>
+              <Text style={styles.deleteBtnTextSpec}>🗑️</Text>
             </Pressable>
           </Animated.View>
         )}
-      </Animated.View>
+      </View>
     </GestureDetector>
   );
 }
@@ -196,6 +246,9 @@ function getChairLayout(seaterType: SeaterType) {
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
+    // Make sure we have enough space around the shape so children (toolbar) don't get clipped easily
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   square: {
     width: sizes.shapeBase,
@@ -236,75 +289,52 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
 
-  controlsLayer: {
+  // Selection box visual outline (dashed border around the shape)
+  selectionOutline: {
+    position: 'absolute',
+    width: sizes.shapeBase + 16,
+    height: sizes.shapeBase + 16,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    borderRadius: radius.sm,
+  },
+
+  toolbarAbsolute: {
     position: 'absolute',
     top: 0,
     left: 0,
-    width: sizes.shapeBase,
-    height: sizes.shapeBase,
-  },
-  selectionBox: {
-    position: 'absolute',
-    width: sizes.shapeBase,
-    height: sizes.shapeBase,
-  },
-  cornerDot: {
-    position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-    borderWidth: 1,
-    borderColor: colors.surface,
-  },
-  topLeftDot: { top: -5, left: -5 },
-  topRightDot: { top: -5, right: -5 },
-  bottomLeftDot: { bottom: -5, left: -5 },
-  bottomRightDot: { bottom: -5, right: -5 },
-  rotationConnector: {
-    position: 'absolute',
-    top: -16,
-    left: '50%',
-    width: 1.5,
-    height: 16,
-    backgroundColor: colors.primary,
-  },
-  rotationHandle: {
-    position: 'absolute',
-    top: -32,
-    left: '50%',
-    marginLeft: -10,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.primary,
-    borderWidth: 1,
-    borderColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  rotationText: {
-    color: colors.surface,
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  deleteBtn: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
+    flexDirection: 'row',
     backgroundColor: colors.sidebarBg,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    borderRadius: radius.md,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: colors.borderDark,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 6,
+    gap: 4,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.surface,
+    zIndex: 1000,
   },
-  deleteText: {
-    color: colors.danger,
-    fontWeight: 'bold',
-    fontSize: 11,
+  toolbarBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  toolbarBtnText: {
+    fontSize: 12,
+  },
+  deleteBtnSpec: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+  },
+  deleteBtnTextSpec: {
+    fontSize: 12,
   },
 });
 
@@ -336,3 +366,4 @@ const tableStyles = StyleSheet.create({
     borderRadius: 3,
   },
 });
+

@@ -14,8 +14,9 @@ const SEATER_OPTIONS: SeaterType[] = [2, 4, 6, 8, 12];
 type Tool = 'shapes' | 'pencil' | 'eraser';
 
 export default function App() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const canvasWidth = windowWidth - sizes.sidebarWidth;
+  const canvasWidth = isSidebarOpen ? windowWidth - sizes.sidebarWidth : windowWidth;
   const canvasHeight = windowHeight;
 
   const [shapes, setShapes] = useState<ShapeItem[]>([]);
@@ -90,31 +91,40 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <Sidebar
-        tool={tool}
-        pencilColor={pencilColor}
-        showColorPicker={showColorPicker}
-        showTableMenu={showTableMenu}
-        onPencilPress={handlePencilPress}
-        onPickColor={color => {
-          setPencilColor(color);
-          setShowColorPicker(false);
-        }}
-        onEraserPress={() => {
-          setTool('eraser');
-          closeAllPopovers();
-        }}
-        onTablesPress={() => {
-          setTool('shapes');
-          setShowColorPicker(false);
-          setShowTableMenu(prev => !prev);
-        }}
-        onSelectSeater={addTable}
-        onImagePress={addImage}
-        onClearPress={clearCanvas}
-      />
+      {isSidebarOpen && (
+        <Sidebar
+          tool={tool}
+          pencilColor={pencilColor}
+          showColorPicker={showColorPicker}
+          showTableMenu={showTableMenu}
+          onPencilPress={handlePencilPress}
+          onPickColor={color => {
+            setPencilColor(color);
+            setShowColorPicker(false);
+          }}
+          onEraserPress={() => {
+            setTool('eraser');
+            closeAllPopovers();
+          }}
+          onTablesPress={() => {
+            setTool('shapes');
+            setShowColorPicker(false);
+            setShowTableMenu(prev => !prev);
+          }}
+          onSelectSeater={addTable}
+          onImagePress={addImage}
+          onClearPress={clearCanvas}
+          onCollapse={() => setIsSidebarOpen(false)}
+        />
+      )}
 
       <View style={styles.canvas}>
+        {!isSidebarOpen && (
+          <Pressable style={styles.floatingOpenBtn} onPress={() => setIsSidebarOpen(true)}>
+            <Text style={styles.floatingOpenText}>➡️</Text>
+          </Pressable>
+        )}
+
         <GestureDetector gesture={canvasTap}>
           <View style={StyleSheet.absoluteFill}>
             <DrawingCanvas
@@ -158,6 +168,7 @@ interface SidebarProps {
   onSelectSeater: (seater: SeaterType) => void;
   onImagePress: () => void;
   onClearPress: () => void;
+  onCollapse: () => void;
 }
 
 function Sidebar({
@@ -172,12 +183,13 @@ function Sidebar({
   onSelectSeater,
   onImagePress,
   onClearPress,
+  onCollapse,
 }: SidebarProps) {
   return (
     <View style={styles.sidebar}>
-      <View style={styles.logoWrap}>
-        <Text style={styles.logoText}>🍽️</Text>
-      </View>
+      <Pressable style={styles.collapseHeaderBtn} onPress={onCollapse}>
+        <Text style={styles.collapseHeaderText}>◀️</Text>
+      </Pressable>
 
       <View style={styles.relativeWrap}>
         <SidebarButton
@@ -298,8 +310,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
   },
-  logoWrap: { marginBottom: spacing.lg },
-  logoText: { fontSize: 26 },
+  collapseHeaderBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  collapseHeaderText: {
+    fontSize: 16,
+  },
 
   relativeWrap: { position: 'relative', zIndex: 100 },
 
@@ -389,5 +412,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.surface,
     overflow: 'hidden',
+  },
+  floatingOpenBtn: {
+    position: 'absolute',
+    top: spacing.md + 20,
+    left: spacing.md,
+    zIndex: 1000,
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: colors.sidebarBg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  floatingOpenText: {
+    fontSize: 16,
   },
 });
