@@ -1,6 +1,4 @@
 // components/CanvasElement.tsx
-// Each item on the canvas: table, image, or shape.
-// Uses reanimated for smooth drag/rotate and gesture-handler for touch.
 import React from 'react';
 import { StyleSheet, View, Pressable, Text, Image } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
@@ -8,7 +6,6 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withSpring,
 } from 'react-native-reanimated';
 import { colors, sizes, radius } from '../theme';
 
@@ -28,27 +25,26 @@ interface ShapeProps {
   selected: boolean;
   onSelect: () => void;
   onDelete: () => void;
-  canvasWidth: number;
-  canvasHeight: number;
+  canvasWidth: number;   // logical/content width — NOT screen width
+  canvasHeight: number;  // logical/content height — NOT screen height
 }
 
-// Bigger, more readable table sizes
 export const getTableDimensions = (seater: SeaterType, type: ShapeType) => {
   if (type !== 'table') {
     return { width: sizes.shapeBase, height: sizes.shapeBase };
   }
   switch (seater) {
     case 2:
-      return { width: 70, height: 70 };    // round cafe table
+      return { width: 70, height: 70 };
     case 6:
-      return { width: 120, height: 70 };   // medium rect
+      return { width: 120, height: 70 };
     case 8:
-      return { width: 150, height: 70 };   // large rect
+      return { width: 150, height: 70 };
     case 12:
-      return { width: 200, height: 70 };   // banquet long
+      return { width: 200, height: 70 };
     case 4:
     default:
-      return { width: 80, height: 80 };    // standard square
+      return { width: 80, height: 80 };
   }
 };
 
@@ -67,18 +63,18 @@ export default function Shape({
   const rotation = useSharedValue(0);
   const savedRotation = useSharedValue(0);
 
-  // Drag — only when selected, clamped to canvas edges
+  // Drag — only when selected, always clamped to the LOGICAL canvas bounds
+  // (this space never changes even if the whole canvas is zoomed/panned)
   const pan = Gesture.Pan()
     .enabled(selected)
     .onChange(e => {
       const nextX = x.value + e.changeX;
       const nextY = y.value + e.changeY;
-      const margin = 28;
+      const margin = 4;
       x.value = Math.max(margin, Math.min(nextX, canvasWidth - itemWidth - margin));
       y.value = Math.max(margin, Math.min(nextY, canvasHeight - itemHeight - margin));
     });
 
-  // Two-finger rotation — only when selected
   const rotate = Gesture.Rotation()
     .enabled(selected)
     .onUpdate(e => {
@@ -88,7 +84,6 @@ export default function Shape({
       savedRotation.value = rotation.value;
     });
 
-  // Tap to select
   const tapToSelect = Gesture.Tap()
     .runOnJS(true)
     .onEnd(() => {
@@ -97,7 +92,6 @@ export default function Shape({
 
   const composedGesture = selected ? Gesture.Simultaneous(pan, rotate) : tapToSelect;
 
-  // 45° quick rotate button
   const handleRotateButton = () => {
     const next = rotation.value + Math.PI / 4;
     rotation.value = withTiming(next, { duration: 150 });
@@ -112,13 +106,17 @@ export default function Shape({
     ],
   }));
 
+  // Toolbar: always stays ABOVE the table, no flip, no spring delay.
+  // Clamped so it never renders above the visible canvas top edge.
   const toolbarStyle = useAnimatedStyle(() => {
-    const rawY = y.value - 48;
+    const rawY = y.value - 44;
     const clampedY = Math.max(rawY, 4);
+    const rawX = x.value + itemWidth / 2 - 40;
+    const clampedX = Math.max(4, Math.min(rawX, canvasWidth - 80 - 4));
 
     return {
       transform: [
-        { translateX: x.value + itemWidth / 2 - 40 },
+        { translateX: clampedX },
         { translateY: clampedY },
       ],
     };
@@ -127,7 +125,6 @@ export default function Shape({
   return (
     <GestureDetector gesture={composedGesture}>
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-
         <Animated.View style={[styles.wrapper, wrapperStyle, { width: itemWidth, height: itemHeight }]}>
           {selected && (
             <View
@@ -179,7 +176,6 @@ export default function Shape({
   );
 }
 
-// ── Table with Chairs ──
 function TableWithChairs({
   seaterType,
   tableNumber,
@@ -194,18 +190,14 @@ function TableWithChairs({
   height: number;
 }) {
   const chairPositions = getChairLayout(seaterType, width, height);
-  // 2-seater = round table (cafe), others = rectangular with rounded corners
   const isRound = seaterType === 2;
 
   return (
-    // wrapper is bigger than table to make room for chairs sticking out
     <View style={[tableStyles.wrapper, { width: width + 36, height: height + 36 }]}>
-      {/* Chairs around the table */}
       {chairPositions.map((pos, i) => (
         <View key={i} style={[tableStyles.chair, pos]} />
       ))}
 
-      {/* The table body */}
       <View
         style={[
           tableStyles.tableBody,
@@ -224,30 +216,25 @@ function TableWithChairs({
   );
 }
 
-// ── Chair position calculator ──
 function getChairLayout(seaterType: SeaterType, width: number, height: number) {
   const positions: any[] = [];
   const chairSize = 16;
-  // +18 = half of wrapper extra padding (36/2)
   const offsetX = 18;
   const offsetY = 18;
 
   if (seaterType === 2) {
-    // 2-Seater: top + bottom
     positions.push(
       { top: -2, left: width / 2 - chairSize / 2 + offsetX },
-      { bottom: -2, left: width / 2 - chairSize / 2 + offsetX }
+      { bottom: -2, left: width / 2 - chairSize / 2 + offsetX },
     );
   } else if (seaterType === 4) {
-    // 4-Seater: 1 each side
     positions.push(
       { top: -2, left: width / 2 - chairSize / 2 + offsetX },
       { bottom: -2, left: width / 2 - chairSize / 2 + offsetX },
       { left: -2, top: height / 2 - chairSize / 2 + offsetY },
-      { right: -2, top: height / 2 - chairSize / 2 + offsetY }
+      { right: -2, top: height / 2 - chairSize / 2 + offsetY },
     );
   } else {
-    // 6, 8, 12: spread along top/bottom + 1 each end
     const sideChairs = (seaterType - 2) / 2;
     const gap = width / (sideChairs + 1);
 
@@ -258,14 +245,13 @@ function getChairLayout(seaterType: SeaterType, width: number, height: number) {
 
     positions.push(
       { left: -2, top: height / 2 - chairSize / 2 + offsetY },
-      { right: -2, top: height / 2 - chairSize / 2 + offsetY }
+      { right: -2, top: height / 2 - chairSize / 2 + offsetY },
     );
   }
 
   return positions;
 }
 
-// ── Styles ──
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
@@ -310,7 +296,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.primary,
   },
-
   selectionOutline: {
     position: 'absolute',
     top: -8,
@@ -320,7 +305,6 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     borderRadius: radius.sm,
   },
-
   toolbarAbsolute: {
     position: 'absolute',
     top: 0,
@@ -348,15 +332,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  toolbarBtnText: {
-    fontSize: 12,
-  },
-  deleteBtnSpec: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-  },
-  deleteBtnTextSpec: {
-    fontSize: 12,
-  },
+  toolbarBtnText: { fontSize: 12 },
+  deleteBtnSpec: { backgroundColor: 'rgba(239, 68, 68, 0.15)' },
+  deleteBtnTextSpec: { fontSize: 12 },
 });
 
 const tableStyles = StyleSheet.create({
@@ -370,7 +348,6 @@ const tableStyles = StyleSheet.create({
     borderColor: colors.tableBorder,
     justifyContent: 'center',
     alignItems: 'center',
-    // subtle shadow to make tables float above canvas
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
@@ -380,7 +357,6 @@ const tableStyles = StyleSheet.create({
   tableSelected: {
     borderColor: colors.primary,
     borderWidth: 2,
-    // orange glow when selected
     shadowColor: colors.primary,
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -406,7 +382,6 @@ const tableStyles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 1.5,
     borderColor: colors.chairBorder,
-    // tiny shadow on each chair
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.15,
