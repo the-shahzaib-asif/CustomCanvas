@@ -1,0 +1,122 @@
+import React from 'react';
+import { StyleSheet, View, Pressable } from 'react-native';
+import Animated, { useAnimatedStyle, SharedValue } from 'react-native-reanimated';
+import Svg, { Defs, Pattern, Rect, Circle } from 'react-native-svg';
+import Shape, { ShapeItem } from './CanvasElement';
+import { colors, radius, sizes } from '../theme';
+
+const PPF = sizes.pixelsPerFoot;
+
+interface FloorCanvasProps {
+  floorWidthFt: number;
+  floorHeightFt: number;
+  shapes: ShapeItem[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+  scale: SharedValue<number>;
+  panX: SharedValue<number>;
+  panY: SharedValue<number>;
+  canvasRotation: SharedValue<number>;
+  onDeselect: () => void;
+}
+
+export default function FloorCanvas({
+  floorWidthFt,
+  floorHeightFt,
+  shapes,
+  selectedId,
+  onSelect,
+  onDelete,
+  scale,
+  panX,
+  panY,
+  canvasRotation,
+  onDeselect,
+}: FloorCanvasProps) {
+  const CONTENT_W = floorWidthFt * PPF;
+  const CONTENT_H = floorHeightFt * PPF;
+
+  // Custom Reanimated style for camera transformations
+  const canvasAnimStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: panX.value },
+      { translateY: panY.value },
+      { scale: scale.value },
+      { rotate: `${canvasRotation.value}rad` },
+    ],
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.floorContainer,
+        {
+          width: CONTENT_W,
+          height: CONTENT_H,
+          marginLeft: -CONTENT_W / 2,
+          marginTop: -CONTENT_H / 2,
+        },
+        canvasAnimStyle,
+      ]}
+    >
+      <View style={styles.floorSurface}>
+        {/* SVG Dotted Grid Pattern (1 dot per foot) */}
+        <Svg style={StyleSheet.absoluteFill}>
+          <Defs>
+            <Pattern
+              id="gridPattern"
+              width={40} // 40px matches 1 foot
+              height={40}
+              patternUnits="userSpaceOnUse"
+            >
+              <Circle cx={20} cy={20} r={1.5} fill={colors.gridDot} />
+            </Pattern>
+          </Defs>
+          <Rect width="100%" height="100%" fill="url(#gridPattern)" />
+        </Svg>
+      </View>
+
+      {/* Floor surface tap target to deselect elements */}
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={onDeselect}
+      />
+
+      {/* Render Placed Tables/Shapes */}
+      {shapes.map(item => (
+        <Shape
+          key={item.id}
+          item={item}
+          selected={selectedId === item.id}
+          onSelect={() => onSelect(item.id)}
+          onDelete={() => onDelete(item.id)}
+          canvasWidth={CONTENT_W}
+          canvasHeight={CONTENT_H}
+          canvasScale={scale} // Pass scale to maintain drag speed
+        />
+      ))}
+    </Animated.View>
+  );
+}
+
+const styles = StyleSheet.create({
+  floorContainer: {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+  },
+  floorSurface: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.borderDark,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 12,
+    overflow: 'hidden',
+  },
+});

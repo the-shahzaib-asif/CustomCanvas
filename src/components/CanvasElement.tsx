@@ -6,6 +6,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  SharedValue,
 } from 'react-native-reanimated';
 import { colors, sizes, radius } from '../theme';
 
@@ -27,7 +28,7 @@ interface ShapeProps {
   onDelete: () => void;
   canvasWidth: number;   // logical/content width — NOT screen width
   canvasHeight: number;  // logical/content height — NOT screen height
-  canvasScale: Animated.SharedValue<number>; // Pass zoom scale to adjust drag speed
+  canvasScale: SharedValue<number>; // Pass zoom scale to adjust drag speed
 }
 
 export const getTableDimensions = (seater: SeaterType, type: ShapeType) => {
