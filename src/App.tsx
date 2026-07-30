@@ -29,7 +29,6 @@ const SEATER_OPTIONS: SeaterType[] = [2, 4, 6, 8, 12];
 
 type Tool = 'shapes' | 'pencil' | 'eraser';
 
-const MIN_ZOOM = sizes.canvasMinZoom;
 const MAX_ZOOM = sizes.canvasMaxZoom;
 const PPF = sizes.pixelsPerFoot;
 
@@ -46,6 +45,14 @@ export default function App() {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const viewportWidth = windowWidth - sizes.sidebarWidth;
   const viewportHeight = windowHeight;
+
+  // Calculate dynamic scale to fit the floor on screen
+  const scaleX = viewportWidth / CONTENT_W;
+  const scaleY = viewportHeight / CONTENT_H;
+  const fitScale = Math.min(scaleX, scaleY) * 0.9; // 10% safety margin
+
+  // Allow zoom out up to 0.1 or fitScale * 0.8 (whichever is smaller) for bird's eye view
+  const dynamicMinZoom = Math.min(0.1, fitScale * 0.8);
 
   const [shapes, setShapes] = useState<ShapeItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -139,7 +146,8 @@ export default function App() {
 
   const parentPinch = Gesture.Pinch()
     .onChange(e => {
-      const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, scale.value * e.scaleChange));
+      // Use dynamicMinZoom so users can zoom out to bird's eye view
+      const next = Math.min(MAX_ZOOM, Math.max(dynamicMinZoom, scale.value * e.scaleChange));
       scale.value = next;
       const clamped = clampPan(panX.value, panY.value, next);
       panX.value = clamped.x;
@@ -177,7 +185,8 @@ export default function App() {
 
   // ── Zoom bar handlers ──
   const zoomBy = (factor: number) => {
-    const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, scale.value * factor));
+    // Use dynamicMinZoom to clamp zoom out button action
+    const next = Math.min(MAX_ZOOM, Math.max(dynamicMinZoom, scale.value * factor));
     scale.value = withTiming(next, { duration: 150 });
     savedScale.value = next;
     const clamped = clampPan(panX.value, panY.value, next);
@@ -201,10 +210,8 @@ export default function App() {
   // Fits the whole floor inside the visible viewport in one tap —
   // computes the largest zoom level that shows the entire floor at once.
   const fitToScreen = () => {
-    const scaleX = viewportWidth / CONTENT_W;
-    const scaleY = viewportHeight / CONTENT_H;
-    const fitScale = Math.min(scaleX, scaleY) * 0.9; // 10% breathing margin
-    const clampedFitScale = Math.max(MIN_ZOOM, Math.min(fitScale, MAX_ZOOM));
+    // Use pre-calculated fitScale and dynamicMinZoom
+    const clampedFitScale = Math.max(dynamicMinZoom, Math.min(fitScale, MAX_ZOOM));
 
     scale.value = withTiming(clampedFitScale, { duration: 250 });
     panX.value = withTiming(0, { duration: 250 });
