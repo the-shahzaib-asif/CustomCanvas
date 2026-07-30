@@ -19,13 +19,16 @@ import { ShapeItem, SeaterType } from './components/CanvasElement';
 import { colors, sizes } from './theme';
 
 const MAX_ZOOM = sizes.canvasMaxZoom;
-const PPF = sizes.pixelsPerFoot;
 
 export default function App() {
   // ── Floor dimensions ──
   const [floorWidthFt, setFloorWidthFt] = useState<number | null>(null);
   const [floorHeightFt, setFloorHeightFt] = useState<number | null>(null);
   const [floorName, setFloorName] = useState<string>('Ground Floor');
+
+  // Compute dynamic PPF so that the maximum floor dimension never exceeds 1000px
+  const maxDimFt = Math.max(floorWidthFt ?? 30, floorHeightFt ?? 20);
+  const PPF = Math.min(40, 1000 / maxDimFt);
 
   const CONTENT_W = (floorWidthFt ?? 30) * PPF;
   const CONTENT_H = (floorHeightFt ?? 20) * PPF;
@@ -285,6 +288,7 @@ export default function App() {
                 setSelectedId(null);
                 closeAllPopovers();
               }}
+              ppf={PPF}
             />
           </View>
         </GestureDetector>

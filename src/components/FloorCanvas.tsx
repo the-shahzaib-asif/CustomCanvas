@@ -5,8 +5,6 @@ import Svg, { Defs, Pattern, Rect, Circle } from 'react-native-svg';
 import Shape, { ShapeItem } from './CanvasElement';
 import { colors, radius, sizes } from '../theme';
 
-const PPF = sizes.pixelsPerFoot;
-
 interface FloorCanvasProps {
   floorWidthFt: number;
   floorHeightFt: number;
@@ -19,6 +17,7 @@ interface FloorCanvasProps {
   panY: SharedValue<number>;
   canvasRotation: SharedValue<number>;
   onDeselect: () => void;
+  ppf: number; // Dynamic pixels per foot based on floor size
 }
 
 export default function FloorCanvas({
@@ -33,9 +32,10 @@ export default function FloorCanvas({
   panY,
   canvasRotation,
   onDeselect,
+  ppf,
 }: FloorCanvasProps) {
-  const CONTENT_W = floorWidthFt * PPF;
-  const CONTENT_H = floorHeightFt * PPF;
+  const CONTENT_W = floorWidthFt * ppf;
+  const CONTENT_H = floorHeightFt * ppf;
 
   // Custom Reanimated style for camera transformations
   const canvasAnimStyle = useAnimatedStyle(() => ({
@@ -61,20 +61,24 @@ export default function FloorCanvas({
       ]}
     >
       <View style={styles.floorSurface}>
-        {/* SVG Dotted Grid Pattern (1 dot per foot) */}
-        <Svg style={StyleSheet.absoluteFill}>
-          <Defs>
-            <Pattern
-              id="gridPattern"
-              width={PPF} // matches 1 foot dynamically
-              height={PPF}
-              patternUnits="userSpaceOnUse"
-            >
-              <Circle cx={PPF / 2} cy={PPF / 2} r={1.5} fill={colors.gridDot} />
-            </Pattern>
-          </Defs>
-          <Rect width={CONTENT_W} height={CONTENT_H} fill="url(#gridPattern)" />
-        </Svg>
+        {/* Only render dotted pattern if PPF is large enough to prevent SVG tiling crash */}
+        {ppf >= 6 ? (
+          <Svg style={StyleSheet.absoluteFill}>
+            <Defs>
+              <Pattern
+                id="gridPattern"
+                width={ppf} // matches 1 foot dynamically
+                height={ppf}
+                patternUnits="userSpaceOnUse"
+              >
+                <Circle cx={ppf / 2} cy={ppf / 2} r={1.5} fill={colors.gridDot} />
+              </Pattern>
+            </Defs>
+            <Rect width={CONTENT_W} height={CONTENT_H} fill="url(#gridPattern)" />
+          </Svg>
+        ) : (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]} />
+        )}
       </View>
 
       {/* Floor surface tap target to deselect elements */}
@@ -95,6 +99,7 @@ export default function FloorCanvas({
           canvasHeight={CONTENT_H}
           canvasScale={scale} // Pass scale to maintain drag speed
           canvasRotation={canvasRotation}
+          ppf={ppf}
         />
       ))}
     </Animated.View>

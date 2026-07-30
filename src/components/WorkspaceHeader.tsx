@@ -1,4 +1,3 @@
-// components/WorkspaceHeader.tsx
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { colors, spacing, radius, sizes } from '../theme';

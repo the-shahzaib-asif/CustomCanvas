@@ -31,6 +31,7 @@ interface ShapeProps {
   canvasHeight: number;  // logical/content height — NOT screen height
   canvasScale: SharedValue<number>; // Pass zoom scale to adjust drag speed
   canvasRotation: SharedValue<number>; // Pass canvas rotation to correct drag directions
+  ppf: number; // Dynamic pixels per foot based on floor size
 }
 
 
@@ -44,8 +45,9 @@ export default function Shape({
   canvasHeight,
   canvasScale,
   canvasRotation,
+  ppf,
 }: ShapeProps) {
-  const { width: itemWidth, height: itemHeight } = getTableDimensions(item.seaterType || 4, item.type);
+  const { width: itemWidth, height: itemHeight } = getTableDimensions(item.seaterType || 4, item.type, ppf);
 
   const x = useSharedValue(canvasWidth / 2 - itemWidth / 2);
   const y = useSharedValue(canvasHeight / 2 - itemHeight / 2);
@@ -70,9 +72,32 @@ export default function Shape({
 
       const nextX = x.value + rotatedDx;
       const nextY = y.value + rotatedDy;
-      const margin = 4;
-      x.value = Math.max(margin, Math.min(nextX, canvasWidth - itemWidth - margin));
-      y.value = Math.max(margin, Math.min(nextY, canvasHeight - itemHeight - margin));
+
+      // Define safe clearances in physical feet
+      const minGapFt = 0.25;  // 1/4 foot clearance for table edges
+      const chairGapFt = 1.25; // 1.25 feet clearance for chairs to sit inside walls
+
+      let leftMargin = minGapFt * ppf;
+      let rightMargin = minGapFt * ppf;
+      let topMargin = minGapFt * ppf;
+      let bottomMargin = minGapFt * ppf;
+
+      if (item.seaterType && item.type === 'table') {
+        const seats = item.seaterType;
+        if (seats >= 2) {
+          topMargin = chairGapFt * ppf;
+          bottomMargin = chairGapFt * ppf;
+        } else if (seats === 1) {
+          topMargin = chairGapFt * ppf;
+        }
+        if (seats >= 4) {
+          leftMargin = chairGapFt * ppf;
+          rightMargin = chairGapFt * ppf;
+        }
+      }
+
+      x.value = Math.max(leftMargin, Math.min(nextX, canvasWidth - itemWidth - rightMargin));
+      y.value = Math.max(topMargin, Math.min(nextY, canvasHeight - itemHeight - bottomMargin));
     });
 
   const rotate = Gesture.Rotation()
@@ -146,6 +171,7 @@ export default function Shape({
                 selected={selected}
                 width={itemWidth}
                 height={itemHeight}
+                ppf={ppf}
               />
             ) : (
               <View
