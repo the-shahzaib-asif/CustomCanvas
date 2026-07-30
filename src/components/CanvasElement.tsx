@@ -27,6 +27,7 @@ interface ShapeProps {
   onDelete: () => void;
   canvasWidth: number;   // logical/content width — NOT screen width
   canvasHeight: number;  // logical/content height — NOT screen height
+  canvasScale: Animated.SharedValue<number>; // Pass zoom scale to adjust drag speed
 }
 
 export const getTableDimensions = (seater: SeaterType, type: ShapeType) => {
@@ -55,6 +56,7 @@ export default function Shape({
   onDelete,
   canvasWidth,
   canvasHeight,
+  canvasScale,
 }: ShapeProps) {
   const { width: itemWidth, height: itemHeight } = getTableDimensions(item.seaterType || 4, item.type);
 
@@ -64,12 +66,12 @@ export default function Shape({
   const savedRotation = useSharedValue(0);
 
   // Drag — only when selected, always clamped to the LOGICAL canvas bounds
-  // (this space never changes even if the whole canvas is zoomed/panned)
   const pan = Gesture.Pan()
     .enabled(selected)
     .onChange(e => {
-      const nextX = x.value + e.changeX;
-      const nextY = y.value + e.changeY;
+      // Divide finger movement by canvasScale.value so drag speed matches the zoom level
+      const nextX = x.value + e.changeX / canvasScale.value;
+      const nextY = y.value + e.changeY / canvasScale.value;
       const margin = 4;
       x.value = Math.max(margin, Math.min(nextX, canvasWidth - itemWidth - margin));
       y.value = Math.max(margin, Math.min(nextY, canvasHeight - itemHeight - margin));

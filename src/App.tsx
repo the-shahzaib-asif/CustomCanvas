@@ -310,8 +310,19 @@ export default function App() {
       />
 
       <View style={styles.canvasArea}>
+        {/* Viewport-wide background for 1-finger panning/deselecting on the gray area */}
+        <GestureDetector gesture={bgPan}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => {
+              setSelectedId(null);
+              closeAllPopovers();
+            }}
+          />
+        </GestureDetector>
+
         <GestureDetector gesture={parentGesture}>
-          <View style={StyleSheet.absoluteFill}>
+          <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
             <Animated.View
               style={[
                 {
@@ -328,6 +339,7 @@ export default function App() {
             >
               <View style={styles.floorSurface} />
 
+              {/* Floor-specific background for 1-finger panning/deselecting on the empty floor area */}
               <GestureDetector gesture={bgPan}>
                 <Pressable
                   style={StyleSheet.absoluteFill}
@@ -361,6 +373,7 @@ export default function App() {
                   onDelete={() => deleteShape(item.id)}
                   canvasWidth={CONTENT_W}
                   canvasHeight={CONTENT_H}
+                  canvasScale={scale} // Pass the scale so elements move at the right speed when zoomed
                 />
               ))}
             </Animated.View>
