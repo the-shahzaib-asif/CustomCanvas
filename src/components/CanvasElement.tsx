@@ -115,15 +115,14 @@ export default function Shape({
     transform: [{ scale: scale.value }],
   }));
 
-  // Dynamic toolbar style to flip position if shape is near the top boundary
-  // positioned absolutely relative to the parent canvas (never scales or rotates)
   const toolbarStyle = useAnimatedStyle(() => {
-    const showBelow = y.value < 60;
-    const targetY = showBelow ? y.value + sizes.shapeBase + 12 : y.value - 48;
+    const rawY = y.value - 48;
+    const clampedY = Math.max(rawY, 4);
+
     return {
       transform: [
-        { translateX: x.value + (sizes.shapeBase / 2) - 68 }, // Center it horizontally (toolbar width is ~136px)
-        { translateY: withSpring(targetY, { damping: 15 }) },
+        { translateX: x.value + sizes.shapeBase / 2 - 68 },
+        { translateY: clampedY },
       ],
     };
   });
@@ -131,7 +130,7 @@ export default function Shape({
   return (
     <GestureDetector gesture={composedGesture}>
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-        
+
         {/* Translated, Scaled, and Rotated Shape content */}
         <Animated.View style={[styles.wrapper, wrapperStyle]}>
           {/* Selection dashed outline around the shape */}
