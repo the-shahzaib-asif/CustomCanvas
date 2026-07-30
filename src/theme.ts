@@ -7,7 +7,7 @@ export const colors = {
   primaryDark: '#D8481E',
   primaryLight: '#FDE9E1',
 
-  background: '#F7F8FA',
+  background: '#F1F3F8',     // slightly cooler gray background
   surface: '#FFFFFF',
   sidebarBg: '#1A1D29',
 
@@ -19,8 +19,12 @@ export const colors = {
   textOnDark: '#E2E8F0',
   textMuted: '#94A3B8',
 
-  tableFill: '#F0592A',
-  chairFill: '#CBD5E1',
+  // Table colors — dark elegant table instead of bright orange
+  tableFill: '#2D3142',       // dark navy-ish table body
+  tableBorder: '#3D4255',     // subtle border around the table
+  chairFill: '#F0592A',       // chairs use brand orange as accent
+  chairBorder: '#D8481E',     // darker orange border on chairs
+
   danger: '#EF4444',
   success: '#10B981',
 };

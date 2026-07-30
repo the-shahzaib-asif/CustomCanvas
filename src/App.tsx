@@ -1,7 +1,10 @@
-// App.tsx
 import React, { useState } from 'react';
 import { StyleSheet, View, Pressable, Text, useWindowDimensions } from 'react-native';
 import { GestureHandlerRootView, Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+} from 'react-native-reanimated';
 import { launchImageLibrary } from 'react-native-image-picker';
 
 import Shape, { ShapeItem, SeaterType } from './components/CanvasElement';
@@ -21,15 +24,34 @@ export default function App() {
 
   const [shapes, setShapes] = useState<ShapeItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [tool, setTool] = useState<Tool>('pencil');
+  const [tool, setTool] = useState<Tool>('shapes'); // Default to shapes mode for placing tables
 
   const [paths, setPaths] = useState<DrawingPath[]>([]);
   const [currentPath, setCurrentPath] = useState<DrawingPath | null>(null);
-  const [pencilColor, setPencilColor] = useState(PENCIL_COLORS[0]);
+  const [pencilColor, setPencilColor] = useState(PENCIL_COLORS[1]); // Default to primary color
 
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showTableMenu, setShowTableMenu] = useState(false);
   const [lastPencilPress, setLastPencilPress] = useState(0);
+
+  // ── Canvas Zoom & Pan Shared Values ──
+  const scale = useSharedValue(1);
+  const panX = useSharedValue(0);
+  const panY = useSharedValue(0);
+
+  // Limits to prevent losing the canvas workspace
+  const minScale = 0.5;
+  const maxScale = 2.5;
+  const panLimit = 600;
+
+  // Animated transform style for the canvas
+  const canvasAnimStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: panX.value },
+      { translateY: panY.value },
+      { scale: scale.value },
+    ],
+  }));
 
   const closeAllPopovers = () => {
     setShowColorPicker(false);
@@ -48,9 +70,40 @@ export default function App() {
     setLastPencilPress(now);
   };
 
-  const canvasTap = Gesture.Tap()
-    .runOnJS(true)
-    .onStart(() => setSelectedId(null));
+  // ── GESTURE HANDLERS ──
+
+  // 1. Parent 2-finger Gestures (Pinch to Zoom & Two-finger Pan)
+  // These are active anywhere on screen, but only trigger with 2 fingers,
+  // so they never conflict with single-finger table dragging.
+  const parentPan = Gesture.Pan()
+    .minPointers(2)
+    .onChange(e => {
+      const nextX = panX.value + e.changeX;
+      const nextY = panY.value + e.changeY;
+      panX.value = Math.max(-panLimit, Math.min(panLimit, nextX));
+      panY.value = Math.max(-panLimit, Math.min(panLimit, nextY));
+    });
+
+  const parentPinch = Gesture.Pinch()
+    .onChange(e => {
+      const nextScale = scale.value * e.scaleChange;
+      scale.value = Math.min(maxScale, Math.max(minScale, nextScale));
+    });
+
+  const parentGesture = Gesture.Simultaneous(parentPan, parentPinch);
+
+  // 2. Background-only 1-finger Pan Gesture
+  // Placed on the empty background layer, so it only triggers when dragging empty space.
+  const bgPan = Gesture.Pan()
+    .minPointers(1)
+    .maxPointers(1)
+    .enabled(tool === 'shapes')
+    .onChange(e => {
+      const nextX = panX.value + e.changeX;
+      const nextY = panY.value + e.changeY;
+      panX.value = Math.max(-panLimit, Math.min(panLimit, nextX));
+      panY.value = Math.max(-panLimit, Math.min(panLimit, nextY));
+    });
 
   const addTable = (seaterType: SeaterType) => {
     const tableCount = shapes.filter(s => s.type === 'table').length + 1;
@@ -125,30 +178,54 @@ export default function App() {
           </Pressable>
         )}
 
-        <GestureDetector gesture={canvasTap}>
+        {/* Parent GestureDetector handles two-finger pan & pinch zoom anywhere on the canvas */}
+        <GestureDetector gesture={parentGesture}>
           <View style={StyleSheet.absoluteFill}>
-            <DrawingCanvas
-              paths={paths}
-              setPaths={setPaths}
-              currentPath={currentPath}
-              setCurrentPath={setCurrentPath}
-              tool={tool}
-              pencilColor={pencilColor}
-            />
+            <Animated.View style={[StyleSheet.absoluteFill, canvasAnimStyle]}>
+              {/* Background Layer: Handles tapping empty space to deselect and one-finger background panning */}
+              <GestureDetector gesture={bgPan}>
+                <Pressable
+                  style={StyleSheet.absoluteFill}
+                  onPress={() => {
+                    setSelectedId(null);
+                    closeAllPopovers();
+                  }}
+                >
+                  {/* Subtle draft grid dots can sit here in future */}
+                </Pressable>
+              </GestureDetector>
+
+              {/* Drawing layer (ignores touches when in Shapes mode to let them pass to background) */}
+              <View
+                style={StyleSheet.absoluteFill}
+                pointerEvents={tool === 'shapes' ? 'none' : 'box-none'}
+              >
+                <DrawingCanvas
+                  paths={paths}
+                  setPaths={setPaths}
+                  currentPath={currentPath}
+                  setCurrentPath={setCurrentPath}
+                  tool={tool}
+                  pencilColor={pencilColor}
+                />
+              </View>
+
+              {/* Shapes / Tables layer (sits on top, catches touches first) */}
+              {shapes.map(item => (
+                <Shape
+                  key={item.id}
+                  item={item}
+                  selected={selectedId === item.id}
+                  onSelect={() => setSelectedId(item.id)}
+                  onDelete={() => deleteShape(item.id)}
+                  canvasWidth={canvasWidth}
+                  canvasHeight={canvasHeight}
+                  canvasScale={scale}
+                />
+              ))}
+            </Animated.View>
           </View>
         </GestureDetector>
-
-        {shapes.map(item => (
-          <Shape
-            key={item.id}
-            item={item}
-            selected={selectedId === item.id}
-            onSelect={() => setSelectedId(item.id)}
-            onDelete={() => deleteShape(item.id)}
-            canvasWidth={canvasWidth}
-            canvasHeight={canvasHeight}
-          />
-        ))}
       </View>
     </GestureHandlerRootView>
   );
@@ -293,8 +370,6 @@ function Popover({ title, children }: { title: string; children: React.ReactNode
     </View>
   );
 }
-
-// ---------- Styles ----------
 
 const styles = StyleSheet.create({
   container: {
