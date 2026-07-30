@@ -22,13 +22,9 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import Svg, { Defs, Pattern, Rect, Circle } from 'react-native-svg';
 
 import Shape, { ShapeItem, SeaterType } from './components/CanvasElement';
-import DrawingCanvas, { DrawingPath } from './components/DrawingCanvas';
 import { colors, spacing, sizes, radius } from './theme';
 
-const PENCIL_COLORS = ['#111827', colors.primary, '#10B981', '#3B82F6', '#EC4899', '#F59E0B'];
 const SEATER_OPTIONS: SeaterType[] = [2, 4, 6, 8, 12];
-
-type Tool = 'shapes' | 'pencil' | 'eraser';
 
 const MAX_ZOOM = sizes.canvasMaxZoom;
 const PPF = sizes.pixelsPerFoot;
@@ -57,15 +53,8 @@ export default function App() {
 
   const [shapes, setShapes] = useState<ShapeItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [tool, setTool] = useState<Tool>('shapes');
 
-  const [paths, setPaths] = useState<DrawingPath[]>([]);
-  const [currentPath, setCurrentPath] = useState<DrawingPath | null>(null);
-  const [pencilColor, setPencilColor] = useState(PENCIL_COLORS[1]);
-
-  const [showColorPicker, setShowColorPicker] = useState(false);
   const [showTableMenu, setShowTableMenu] = useState(false);
-  const [lastPencilPress, setLastPencilPress] = useState(0);
 
   const [zoomPercent, setZoomPercent] = useState(100);
 
@@ -115,20 +104,7 @@ export default function App() {
   }));
 
   const closeAllPopovers = () => {
-    setShowColorPicker(false);
     setShowTableMenu(false);
-  };
-
-  const handlePencilPress = () => {
-    const now = Date.now();
-    setShowTableMenu(false);
-    if (now - lastPencilPress < 300) {
-      setShowColorPicker(prev => !prev);
-    } else {
-      setTool('pencil');
-      setShowColorPicker(false);
-    }
-    setLastPencilPress(now);
   };
 
   // ── Gestures ──
@@ -173,7 +149,6 @@ export default function App() {
   const bgPan = Gesture.Pan()
     .minPointers(1)
     .maxPointers(1)
-    .enabled(tool === 'shapes')
     .onChange(e => {
       const next = clampPan(panX.value + e.changeX, panY.value + e.changeY, scale.value);
       panX.value = next.x;
@@ -244,7 +219,6 @@ export default function App() {
     };
     setShapes(prev => [...prev, newTable]);
     setSelectedId(newTable.id);
-    setTool('shapes');
     setShowTableMenu(false);
   };
 
@@ -255,7 +229,6 @@ export default function App() {
       if (uri) {
         const newImage: ShapeItem = { id: Date.now().toString(), type: 'Image', imageUri: uri };
         setShapes(prev => [...prev, newImage]);
-        setTool('shapes');
       }
     });
   };
@@ -267,8 +240,6 @@ export default function App() {
 
   const clearCanvas = () => {
     setShapes([]);
-    setPaths([]);
-    setCurrentPath(null);
     setSelectedId(null);
   };
 
@@ -287,22 +258,8 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <Sidebar
-        tool={tool}
-        pencilColor={pencilColor}
-        showColorPicker={showColorPicker}
         showTableMenu={showTableMenu}
-        onPencilPress={handlePencilPress}
-        onPickColor={color => {
-          setPencilColor(color);
-          setShowColorPicker(false);
-        }}
-        onEraserPress={() => {
-          setTool('eraser');
-          closeAllPopovers();
-        }}
         onTablesPress={() => {
-          setTool('shapes');
-          setShowColorPicker(false);
           setShowTableMenu(prev => !prev);
         }}
         onSelectSeater={addTable}
@@ -366,19 +323,7 @@ export default function App() {
                 />
               </GestureDetector>
 
-              <View
-                style={StyleSheet.absoluteFill}
-                pointerEvents={tool === 'shapes' ? 'none' : 'box-none'}
-              >
-                <DrawingCanvas
-                  paths={paths}
-                  setPaths={setPaths}
-                  currentPath={currentPath}
-                  setCurrentPath={setCurrentPath}
-                  tool={tool}
-                  pencilColor={pencilColor}
-                />
-              </View>
+
 
               {shapes.map(item => (
                 <Shape
@@ -477,13 +422,7 @@ function NewFloorSetup({ onCreate }: { onCreate: (widthFt: number, heightFt: num
 // ---------- Sidebar ----------
 
 interface SidebarProps {
-  tool: Tool;
-  pencilColor: string;
-  showColorPicker: boolean;
   showTableMenu: boolean;
-  onPencilPress: () => void;
-  onPickColor: (color: string) => void;
-  onEraserPress: () => void;
   onTablesPress: () => void;
   onSelectSeater: (seater: SeaterType) => void;
   onImagePress: () => void;
@@ -491,13 +430,7 @@ interface SidebarProps {
 }
 
 function Sidebar({
-  tool,
-  pencilColor,
-  showColorPicker,
   showTableMenu,
-  onPencilPress,
-  onPickColor,
-  onEraserPress,
   onTablesPress,
   onSelectSeater,
   onImagePress,
@@ -510,7 +443,7 @@ function Sidebar({
       </View>
 
       <View style={styles.relativeWrap}>
-        <SidebarButton emoji="🪑" label="Tables" active={tool === 'shapes'} onPress={onTablesPress} />
+        <SidebarButton emoji="🪑" label="Tables" active={showTableMenu} onPress={onTablesPress} />
         {showTableMenu && (
           <Popover title="Add Table">
             <View style={styles.seaterGrid}>
@@ -525,30 +458,6 @@ function Sidebar({
         )}
       </View>
 
-      <View style={styles.relativeWrap}>
-        <SidebarButton emoji="✏️" label="Pencil" active={tool === 'pencil'} onPress={onPencilPress}>
-          <View style={[styles.colorDot, { backgroundColor: pencilColor }]} />
-        </SidebarButton>
-        {showColorPicker && (
-          <Popover title="Brush Color">
-            <View style={styles.colorRow}>
-              {PENCIL_COLORS.map(color => (
-                <Pressable
-                  key={color}
-                  style={[
-                    styles.colorOption,
-                    { backgroundColor: color },
-                    pencilColor === color && styles.colorOptionSelected,
-                  ]}
-                  onPress={() => onPickColor(color)}
-                />
-              ))}
-            </View>
-          </Popover>
-        )}
-      </View>
-
-      <SidebarButton emoji="🧹" label="Eraser" active={tool === 'eraser'} onPress={onEraserPress} />
       <SidebarButton emoji="🖼️" label="Image" onPress={onImagePress} />
 
       <View style={styles.sidebarSpacer} />
