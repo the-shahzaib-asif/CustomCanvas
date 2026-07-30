@@ -19,6 +19,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { launchImageLibrary } from 'react-native-image-picker';
+import Svg, { Defs, Pattern, Rect, Circle } from 'react-native-svg';
 
 import Shape, { ShapeItem, SeaterType } from './components/CanvasElement';
 import DrawingCanvas, { DrawingPath } from './components/DrawingCanvas';
@@ -337,7 +338,22 @@ export default function App() {
                 canvasAnimStyle,
               ]}
             >
-              <View style={styles.floorSurface} />
+              <View style={styles.floorSurface}>
+                {/* SVG Dotted Grid Pattern (1 dot per foot) */}
+                <Svg style={StyleSheet.absoluteFill}>
+                  <Defs>
+                    <Pattern
+                      id="gridPattern"
+                      width={40} // 40px matches 1 foot
+                      height={40}
+                      patternUnits="userSpaceOnUse"
+                    >
+                      <Circle cx={20} cy={20} r={1.5} fill={colors.gridDot} />
+                    </Pattern>
+                  </Defs>
+                  <Rect width="100%" height="100%" fill="url(#gridPattern)" />
+                </Svg>
+              </View>
 
               {/* Floor-specific background for 1-finger panning/deselecting on the empty floor area */}
               <GestureDetector gesture={bgPan}>
@@ -738,6 +754,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,                      // CHANGED
     shadowRadius: 20,                          // CHANGED
     elevation: 12,
+    overflow: 'hidden',             // Ensure grid dots don't leak out of rounded corners
   },
 
   // ── Zoom bar ──
