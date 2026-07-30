@@ -10,6 +10,7 @@ interface SidebarProps {
   onSelectSeater: (seater: SeaterType) => void;
   onImagePress: () => void;
   onClearPress: () => void;
+  onNewFloorPress: () => void; // Callback to return to setup screen
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
 }
@@ -22,6 +23,7 @@ export default function Sidebar({
   onSelectSeater,
   onImagePress,
   onClearPress,
+  onNewFloorPress,
   isSidebarOpen,
   onToggleSidebar,
 }: SidebarProps) {
@@ -31,17 +33,18 @@ export default function Sidebar({
   const handleCustomSubmit = () => {
     const seats = Number(customSeats);
     if (isNaN(seats) || seats <= 0) {
-      setCustomError('Enter seats 1-10');
+      setCustomError('Enter seats 1-12');
       return;
     }
-    if (seats > 10) {
-      setCustomError('Max 10 seats');
+    if (seats > 12) {
+      setCustomError('Max 12 seats');
       return;
     }
     onSelectSeater(seats);
     setCustomSeats('');
     setCustomError(undefined);
   };
+
   return (
     <View style={styles.sidebar}>
       {/* Brand logo header — non-clickable, clearly branded */}
@@ -124,6 +127,16 @@ export default function Sidebar({
       />
 
       <View style={styles.sidebarSpacer} />
+
+      {/* New Floor Button */}
+      <Pressable style={styles.newFloorBtn} onPress={onNewFloorPress}>
+        <Svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <Rect x="3" y="3" width="18" height="18" rx="2" stroke={colors.primary} strokeWidth="2" />
+          <Path d="M12 8V16" stroke={colors.primary} strokeWidth="2" strokeLinecap="round" />
+          <Path d="M8 12H16" stroke={colors.primary} strokeWidth="2" strokeLinecap="round" />
+        </Svg>
+        <Text style={styles.newFloorText}>New</Text>
+      </Pressable>
 
       {/* Clear Button */}
       <Pressable style={styles.clearBtn} onPress={onClearPress}>
@@ -328,4 +341,16 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: '600',
   },
+  newFloorBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(240, 89, 42, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(240, 89, 42, 0.25)',
+    marginBottom: spacing.xs,
+  },
+  newFloorText: { fontSize: 9, color: colors.primary, marginTop: 4, fontWeight: '600' },
 });

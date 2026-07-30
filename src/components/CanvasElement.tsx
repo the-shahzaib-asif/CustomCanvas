@@ -30,6 +30,7 @@ interface ShapeProps {
   canvasWidth: number;   // logical/content width — NOT screen width
   canvasHeight: number;  // logical/content height — NOT screen height
   canvasScale: SharedValue<number>; // Pass zoom scale to adjust drag speed
+  canvasRotation: SharedValue<number>; // Pass canvas rotation to correct drag directions
 }
 
 
@@ -42,6 +43,7 @@ export default function Shape({
   canvasWidth,
   canvasHeight,
   canvasScale,
+  canvasRotation,
 }: ShapeProps) {
   const { width: itemWidth, height: itemHeight } = getTableDimensions(item.seaterType || 4, item.type);
 
@@ -55,8 +57,19 @@ export default function Shape({
     .enabled(selected)
     .onChange(e => {
       // Divide finger movement by canvasScale.value so drag speed matches the zoom level
-      const nextX = x.value + e.changeX / canvasScale.value;
-      const nextY = y.value + e.changeY / canvasScale.value;
+      const dx = e.changeX / canvasScale.value;
+      const dy = e.changeY / canvasScale.value;
+
+      // Trigonometric Rotation Matrix: rotate vector by -theta (negative canvas rotation)
+      const theta = canvasRotation.value;
+      const cosTheta = Math.cos(theta);
+      const sinTheta = Math.sin(theta);
+
+      const rotatedDx = dx * cosTheta + dy * sinTheta;
+      const rotatedDy = -dx * sinTheta + dy * cosTheta;
+
+      const nextX = x.value + rotatedDx;
+      const nextY = y.value + rotatedDy;
       const margin = 4;
       x.value = Math.max(margin, Math.min(nextX, canvasWidth - itemWidth - margin));
       y.value = Math.max(margin, Math.min(nextY, canvasHeight - itemHeight - margin));

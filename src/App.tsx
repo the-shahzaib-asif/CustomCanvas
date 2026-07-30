@@ -213,6 +213,13 @@ export default function App() {
     setSelectedId(null);
   };
 
+  const resetFloor = () => {
+    setFloorWidthFt(null);
+    setFloorHeightFt(null);
+    setShapes([]);
+    setSelectedId(null);
+  };
+
   // Setup flow check
   if (!floorWidthFt || !floorHeightFt) {
     return (
@@ -236,6 +243,7 @@ export default function App() {
           onSelectSeater={addTable}
           onImagePress={() => {}} // Handle photo insertions if needed
           onClearPress={clearCanvas}
+          onNewFloorPress={resetFloor}
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={toggleSidebar}
         />

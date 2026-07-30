@@ -94,6 +94,7 @@ export default function FloorCanvas({
           canvasWidth={CONTENT_W}
           canvasHeight={CONTENT_H}
           canvasScale={scale} // Pass scale to maintain drag speed
+          canvasRotation={canvasRotation}
         />
       ))}
     </Animated.View>
