@@ -37,8 +37,8 @@ export default function NewFloorSetup({ onCreate }: NewFloorSetupProps) {
       newErrors.width = 'Must be a positive number';
     } else if (wNum < 10) {
       newErrors.width = 'Min width is 10ft';
-    } else if (wNum > 150) {
-      newErrors.width = 'Max width is 150ft';
+    } else if (wNum > 80) {
+      newErrors.width = 'Max width is 80ft';
     }
 
     // 3. Validate Height
@@ -47,8 +47,8 @@ export default function NewFloorSetup({ onCreate }: NewFloorSetupProps) {
       newErrors.height = 'Must be a positive number';
     } else if (hNum < 10) {
       newErrors.height = 'Min height is 10ft';
-    } else if (hNum > 150) {
-      newErrors.height = 'Max height is 150ft';
+    } else if (hNum > 80) {
+      newErrors.height = 'Max height is 80ft';
     }
 
     // If there are validation errors, block submission

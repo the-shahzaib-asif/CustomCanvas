@@ -66,14 +66,14 @@ export default function FloorCanvas({
           <Defs>
             <Pattern
               id="gridPattern"
-              width={40} // 40px matches 1 foot
-              height={40}
+              width={PPF} // matches 1 foot dynamically
+              height={PPF}
               patternUnits="userSpaceOnUse"
             >
-              <Circle cx={20} cy={20} r={1.5} fill={colors.gridDot} />
+              <Circle cx={PPF / 2} cy={PPF / 2} r={1.5} fill={colors.gridDot} />
             </Pattern>
           </Defs>
-          <Rect width="100%" height="100%" fill="url(#gridPattern)" />
+          <Rect width={CONTENT_W} height={CONTENT_H} fill="url(#gridPattern)" />
         </Svg>
       </View>
 
