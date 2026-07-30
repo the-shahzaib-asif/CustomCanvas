@@ -50,7 +50,7 @@ export const sizes = {
   panOverscroll: 250,
 
   // Pixels-per-foot conversion used when the user sets floor dimensions in feet.
-  pixelsPerFoot: 40,
+  pixelsPerFoot: 15,
 };
 
 export const radius = {

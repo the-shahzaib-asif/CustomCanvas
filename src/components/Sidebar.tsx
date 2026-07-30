@@ -1,6 +1,5 @@
-// components/Sidebar.tsx
-import React from 'react';
-import { StyleSheet, View, Pressable, Text } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View, Pressable, Text, TextInput } from 'react-native';
 import Svg, { Circle, Path, Rect, Defs, Pattern } from 'react-native-svg';
 import { colors, spacing, radius, sizes } from '../theme';
 import { SeaterType } from './CanvasElement';
@@ -26,6 +25,23 @@ export default function Sidebar({
   isSidebarOpen,
   onToggleSidebar,
 }: SidebarProps) {
+  const [customSeats, setCustomSeats] = useState('');
+  const [customError, setCustomError] = useState<string | undefined>(undefined);
+
+  const handleCustomSubmit = () => {
+    const seats = Number(customSeats);
+    if (isNaN(seats) || seats <= 0) {
+      setCustomError('Enter seats 1-10');
+      return;
+    }
+    if (seats > 10) {
+      setCustomError('Max 10 seats');
+      return;
+    }
+    onSelectSeater(seats);
+    setCustomSeats('');
+    setCustomError(undefined);
+  };
   return (
     <View style={styles.sidebar}>
       {/* Brand logo header — non-clickable, clearly branded */}
@@ -67,6 +83,29 @@ export default function Sidebar({
                 </Pressable>
               ))}
             </View>
+
+            {/* Separator Line */}
+            <View style={styles.popoverDivider} />
+
+            {/* Custom seats row */}
+            <View style={styles.customRow}>
+              <TextInput
+                style={[styles.customInput, customError && styles.customInputError]}
+                placeholder="Custom"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="numeric"
+                value={customSeats}
+                onChangeText={(txt) => {
+                  const sanitized = txt.replace(/[^0-9]/g, '');
+                  setCustomSeats(sanitized);
+                  setCustomError(undefined);
+                }}
+              />
+              <Pressable style={styles.customAddBtn} onPress={handleCustomSubmit}>
+                <Text style={styles.customAddBtnText}>Add</Text>
+              </Pressable>
+            </View>
+            {customError && <Text style={styles.customErrorText}>{customError}</Text>}
           </Popover>
         )}
       </View>
@@ -246,4 +285,47 @@ const styles = StyleSheet.create({
   },
   seaterOptionText: { fontSize: 16, fontWeight: '700', color: colors.primary },
   seaterOptionSub: { fontSize: 9, color: colors.textSecondary, fontWeight: '600' },
+  popoverDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.md,
+  },
+  customRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    alignItems: 'center',
+  },
+  customInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    fontSize: 13,
+    color: colors.textPrimary,
+    backgroundColor: colors.background,
+  },
+  customInputError: {
+    borderColor: colors.danger,
+  },
+  customAddBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm - 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  customAddBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  customErrorText: {
+    color: colors.danger,
+    fontSize: 9,
+    marginTop: 4,
+    fontWeight: '600',
+  },
 });
