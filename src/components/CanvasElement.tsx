@@ -123,9 +123,9 @@ export default function Shape({
 
         <Animated.View style={[styles.wrapper, wrapperStyle, { width: itemWidth, height: itemHeight }]}>
           {selected && (
-            <View 
-              style={[styles.selectionOutline, { width: itemWidth + 16, height: itemHeight + 16 }]} 
-              pointerEvents="none" 
+            <View
+              style={[styles.selectionOutline, { width: itemWidth + 16, height: itemHeight + 16 }]}
+              pointerEvents="none"
             />
           )}
 
@@ -221,12 +221,12 @@ function getChairLayout(seaterType: SeaterType, width: number, height: number) {
     // Spaced out evenly along the sides, and 1 chair on each end (left and right)
     const sideChairs = (seaterType - 2) / 2;
     const gap = width / (sideChairs + 1);
-    
+
     for (let i = 1; i <= sideChairs; i++) {
       positions.push({ top: -14, left: gap * i - 7 });
       positions.push({ bottom: -14, left: gap * i - 7 });
     }
-    
+
     positions.push(
       { left: -14, top: height / 2 - 7 },
       { right: -14, top: height / 2 - 7 }
