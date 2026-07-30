@@ -30,6 +30,25 @@ interface ShapeProps {
   canvasHeight: number;
 }
 
+export const getTableDimensions = (seater: SeaterType, type: ShapeType) => {
+  if (type !== 'table') {
+    return { width: sizes.shapeBase, height: sizes.shapeBase };
+  }
+  switch (seater) {
+    case 2:
+      return { width: 56, height: 56 };
+    case 6:
+      return { width: 96, height: 64 };
+    case 8:
+      return { width: 120, height: 64 };
+    case 12:
+      return { width: 170, height: 64 };
+    case 4:
+    default:
+      return { width: 64, height: 64 };
+  }
+};
+
 export default function Shape({
   item,
   selected,
@@ -38,10 +57,10 @@ export default function Shape({
   canvasWidth,
   canvasHeight,
 }: ShapeProps) {
-  const x = useSharedValue(canvasWidth / 2 - sizes.shapeBase / 2);
-  const y = useSharedValue(canvasHeight / 2 - sizes.shapeBase / 2);
-  const scale = useSharedValue(1);
-  const savedScale = useSharedValue(1);
+  const { width: itemWidth, height: itemHeight } = getTableDimensions(item.seaterType || 4, item.type);
+
+  const x = useSharedValue(canvasWidth / 2 - itemWidth / 2);
+  const y = useSharedValue(canvasHeight / 2 - itemHeight / 2);
   const rotation = useSharedValue(0);
   const savedRotation = useSharedValue(0);
 
@@ -51,18 +70,8 @@ export default function Shape({
       const nextX = x.value + e.changeX;
       const nextY = y.value + e.changeY;
       const margin = 28;
-      x.value = Math.max(margin, Math.min(nextX, canvasWidth - sizes.shapeBase - margin));
-      y.value = Math.max(margin, Math.min(nextY, canvasHeight - sizes.shapeBase - margin));
-    });
-
-  const pinch = Gesture.Pinch()
-    .enabled(selected)
-    .onUpdate(e => {
-      const next = savedScale.value * e.scale;
-      scale.value = Math.max(sizes.minScale, Math.min(next, sizes.maxScale));
-    })
-    .onEnd(() => {
-      savedScale.value = scale.value;
+      x.value = Math.max(margin, Math.min(nextX, canvasWidth - itemWidth - margin));
+      y.value = Math.max(margin, Math.min(nextY, canvasHeight - itemHeight - margin));
     });
 
   const rotate = Gesture.Rotation()
@@ -80,28 +89,13 @@ export default function Shape({
       onSelect();
     });
 
-  const composedGesture = selected ? Gesture.Simultaneous(pan, pinch, rotate) : tapToSelect;
-
-
-  const handleUpScale = () => {
-    const next = Math.min(scale.value + 0.15, sizes.maxScale);
-    scale.value = withTiming(next, { duration: 150 });
-    savedScale.value = next;
-  };
-
-  const handleDownScale = () => {
-    const next = Math.max(scale.value - 0.15, sizes.minScale);
-    scale.value = withTiming(next, { duration: 150 });
-    savedScale.value = next;
-  };
-
+  const composedGesture = selected ? Gesture.Simultaneous(pan, rotate) : tapToSelect;
 
   const handleRotateButton = () => {
-    const next = rotation.value + Math.PI / 4; // Rotate 45 degrees
+    const next = rotation.value + Math.PI / 4;
     rotation.value = withTiming(next, { duration: 150 });
     savedRotation.value = next;
   };
-
 
   const wrapperStyle = useAnimatedStyle(() => ({
     transform: [
@@ -111,17 +105,13 @@ export default function Shape({
     ],
   }));
 
-  const contentStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
   const toolbarStyle = useAnimatedStyle(() => {
     const rawY = y.value - 48;
     const clampedY = Math.max(rawY, 4);
 
     return {
       transform: [
-        { translateX: x.value + sizes.shapeBase / 2 - 68 },
+        { translateX: x.value + itemWidth / 2 - 40 },
         { translateY: clampedY },
       ],
     };
@@ -131,48 +121,44 @@ export default function Shape({
     <GestureDetector gesture={composedGesture}>
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
 
-        {/* Translated, Scaled, and Rotated Shape content */}
-        <Animated.View style={[styles.wrapper, wrapperStyle]}>
-          {/* Selection dashed outline around the shape */}
-          {selected && <View style={styles.selectionOutline} pointerEvents="none" />}
+        <Animated.View style={[styles.wrapper, wrapperStyle, { width: itemWidth, height: itemHeight }]}>
+          {selected && (
+            <View 
+              style={[styles.selectionOutline, { width: itemWidth + 16, height: itemHeight + 16 }]} 
+              pointerEvents="none" 
+            />
+          )}
 
-          <Animated.View style={contentStyle}>
-            <Pressable onPress={onSelect}>
-              {item.type === 'Image' ? (
-                <Image
-                  source={{ uri: item.imageUri }}
-                  style={[styles.imageElement, selected && styles.selectedBorder]}
-                />
-              ) : item.type === 'table' ? (
-                <TableWithChairs
-                  seaterType={item.seaterType || 4}
-                  tableNumber={item.tableNumber}
-                  selected={selected}
-                />
-              ) : (
-                <View
-                  style={[
-                    item.type === 'square' && styles.square,
-                    item.type === 'circle' && styles.circle,
-                    item.type === 'triangle' && styles.triangle,
-                    item.type === 'diamond' && styles.diamond,
-                    selected && styles.selectedBorder,
-                  ]}
-                />
-              )}
-            </Pressable>
-          </Animated.View>
+          <Pressable onPress={onSelect}>
+            {item.type === 'Image' ? (
+              <Image
+                source={{ uri: item.imageUri }}
+                style={[styles.imageElement, selected && styles.selectedBorder]}
+              />
+            ) : item.type === 'table' ? (
+              <TableWithChairs
+                seaterType={item.seaterType || 4}
+                tableNumber={item.tableNumber}
+                selected={selected}
+                width={itemWidth}
+                height={itemHeight}
+              />
+            ) : (
+              <View
+                style={[
+                  item.type === 'square' && styles.square,
+                  item.type === 'circle' && styles.circle,
+                  item.type === 'triangle' && styles.triangle,
+                  item.type === 'diamond' && styles.diamond,
+                  selected && styles.selectedBorder,
+                ]}
+              />
+            )}
+          </Pressable>
         </Animated.View>
 
-        {/* Flat, Upright Action Toolbar (sits outside the rotation View) */}
         {selected && (
           <Animated.View style={[styles.toolbarAbsolute, toolbarStyle]} pointerEvents="box-none">
-            <Pressable style={styles.toolbarBtn} onPress={handleUpScale}>
-              <Text style={styles.toolbarBtnText}>➕</Text>
-            </Pressable>
-            <Pressable style={styles.toolbarBtn} onPress={handleDownScale}>
-              <Text style={styles.toolbarBtnText}>➖</Text>
-            </Pressable>
             <Pressable style={styles.toolbarBtn} onPress={handleRotateButton}>
               <Text style={styles.toolbarBtnText}>🔄</Text>
             </Pressable>
@@ -186,57 +172,65 @@ export default function Shape({
   );
 }
 
-// ---------- Table + Chairs ----------
-
 function TableWithChairs({
   seaterType,
   tableNumber,
   selected,
+  width,
+  height,
 }: {
   seaterType: SeaterType;
   tableNumber?: string;
   selected: boolean;
+  width: number;
+  height: number;
 }) {
-  const chairPositions = getChairLayout(seaterType);
+  const chairPositions = getChairLayout(seaterType, width, height);
 
   return (
-    <View style={tableStyles.wrapper}>
+    <View style={[tableStyles.wrapper, { width, height }]}>
       {chairPositions.map((pos, i) => (
         <View key={i} style={[tableStyles.chair, pos]} />
       ))}
-      <View style={[tableStyles.tableBody, selected && styles.selectedBorder]}>
+      <View style={[tableStyles.tableBody, { width, height }, selected && styles.selectedBorder]}>
         <Text style={tableStyles.tableLabel}>{tableNumber || `T${seaterType}`}</Text>
       </View>
     </View>
   );
 }
 
-function getChairLayout(seaterType: SeaterType) {
+function getChairLayout(seaterType: SeaterType, width: number, height: number) {
   const positions: any[] = [];
 
   if (seaterType === 2) {
-    positions.push({ top: -14, left: 25 }, { bottom: -14, left: 25 });
-  } else if (seaterType === 4) {
+    // 2-Seater: 1 chair on top, 1 on bottom
     positions.push(
-      { top: -14, left: 25 },
-      { bottom: -14, left: 25 },
-      { left: -14, top: 25 },
-      { right: -14, top: 25 },
+      { top: -14, left: width / 2 - 7 },
+      { bottom: -14, left: width / 2 - 7 }
     );
-  } else if (seaterType === 6) {
+  } else if (seaterType === 4) {
+    // 4-Seater: 1 chair on each of the 4 sides
     positions.push(
-      { top: -14, left: 10 }, { top: -14, right: 10 },
-      { bottom: -14, left: 10 }, { bottom: -14, right: 10 },
-      { left: -14, top: 25 }, { right: -14, top: 25 },
+      { top: -14, left: width / 2 - 7 },
+      { bottom: -14, left: width / 2 - 7 },
+      { left: -14, top: height / 2 - 7 },
+      { right: -14, top: height / 2 - 7 }
     );
   } else {
-    const perSide = Math.ceil((seaterType - 2) / 2 / 2);
-    const gap = 64 / (perSide + 1);
-    for (let i = 1; i <= perSide; i++) {
+    // Rectangular tables (6, 8, 12 seaters):
+    // Spaced out evenly along the sides, and 1 chair on each end (left and right)
+    const sideChairs = (seaterType - 2) / 2;
+    const gap = width / (sideChairs + 1);
+    
+    for (let i = 1; i <= sideChairs; i++) {
       positions.push({ top: -14, left: gap * i - 7 });
       positions.push({ bottom: -14, left: gap * i - 7 });
     }
-    positions.push({ left: -14, top: 25 }, { right: -14, top: 25 });
+    
+    positions.push(
+      { left: -14, top: height / 2 - 7 },
+      { right: -14, top: height / 2 - 7 }
+    );
   }
 
   return positions;
