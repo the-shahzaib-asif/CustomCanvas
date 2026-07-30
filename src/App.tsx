@@ -33,6 +33,7 @@ export default function App() {
   // ── Floor dimensions — set once via the setup screen, then fixed ──
   const [floorWidthFt, setFloorWidthFt] = useState<number | null>(null);
   const [floorHeightFt, setFloorHeightFt] = useState<number | null>(null);
+  const [floorName, setFloorName] = useState<string>('Ground Floor');
 
   // Fallback dummy values so hooks below never see NaN before setup is done.
   // The setup screen is shown instead of the canvas until these are real.
@@ -262,9 +263,10 @@ export default function App() {
   if (!floorWidthFt || !floorHeightFt) {
     return (
       <NewFloorSetup
-        onCreate={(w, h) => {
+        onCreate={(w, h, name) => {
           setFloorWidthFt(w);
           setFloorHeightFt(h);
+          setFloorName(name);
         }}
       />
     );
@@ -287,6 +289,14 @@ export default function App() {
       </Animated.View>
 
       <View style={styles.canvasArea}>
+        {/* Workspace Title Header — Displays floor details dynamically */}
+        <View style={styles.workspaceHeader} pointerEvents="none">
+          <Text style={styles.workspaceTitle}>{floorName}</Text>
+          <Text style={styles.workspaceSubtitle}>
+            {floorWidthFt}ft × {floorHeightFt}ft Layout
+          </Text>
+        </View>
+
         <GestureDetector gesture={parentGesture}>
           <View style={StyleSheet.absoluteFill}>
             {/* Viewport-wide background tap target to deselect selected elements */}
@@ -338,8 +348,6 @@ export default function App() {
                 }}
               />
 
-
-
               {shapes.map(item => (
                 <Shape
                   key={item.id}
@@ -379,14 +387,50 @@ export default function App() {
 
 // ---------- New Floor Setup Screen ----------
 
-function NewFloorSetup({ onCreate }: { onCreate: (widthFt: number, heightFt: number) => void }) {
+function NewFloorSetup({ onCreate }: { onCreate: (widthFt: number, heightFt: number, name: string) => void }) {
+  const [name, setName] = useState('Ground Floor');
   const [width, setWidth] = useState('30');
   const [height, setHeight] = useState('20');
+  
+  const [errors, setErrors] = useState<{ name?: string; width?: string; height?: string }>({});
 
   const handleCreate = () => {
-    const w = Math.max(5, Number(width) || 30);
-    const h = Math.max(5, Number(height) || 20);
-    onCreate(w, h);
+    const newErrors: typeof errors = {};
+
+    // 1. Clean and validate Name
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      newErrors.name = 'Floor name is required';
+    }
+
+    // 2. Validate Width
+    const wNum = Number(width);
+    if (isNaN(wNum) || wNum <= 0) {
+      newErrors.width = 'Must be a positive number';
+    } else if (wNum < 10) {
+      newErrors.width = 'Min width is 10ft';
+    } else if (wNum > 150) {
+      newErrors.width = 'Max width is 150ft';
+    }
+
+    // 3. Validate Height
+    const hNum = Number(height);
+    if (isNaN(hNum) || hNum <= 0) {
+      newErrors.height = 'Must be a positive number';
+    } else if (hNum < 10) {
+      newErrors.height = 'Min height is 10ft';
+    } else if (hNum > 150) {
+      newErrors.height = 'Max height is 150ft';
+    }
+
+    // If there are validation errors, block submission
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    // Validation success: send sanitized values
+    onCreate(wNum, hNum, trimmedName);
   };
 
   return (
@@ -398,31 +442,59 @@ function NewFloorSetup({ onCreate }: { onCreate: (widthFt: number, heightFt: num
         <Text style={styles.setupEmoji}>🍽️</Text>
         <Text style={styles.setupTitle}>Create Your Floor</Text>
         <Text style={styles.setupSubtitle}>
-          Enter the real-world size of your restaurant floor (in feet). You can place tables and design the layout next.
+          Enter details to design your restaurant table layout module.
         </Text>
 
+        {/* Floor Name input field */}
+        <View style={{ width: '100%', marginBottom: spacing.md }}>
+          <Text style={styles.setupLabel}>Floor Name</Text>
+          <TextInput
+            style={[styles.setupInput, errors.name && styles.setupInputError]}
+            value={name}
+            onChangeText={(txt) => {
+              setName(txt);
+              setErrors((prev) => ({ ...prev, name: undefined }));
+            }}
+            placeholder="Ground Floor"
+            placeholderTextColor={colors.textMuted}
+          />
+          {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+        </View>
+
+        {/* Width and Height input fields */}
         <View style={styles.setupRow}>
           <View style={styles.setupField}>
             <Text style={styles.setupLabel}>Width (ft)</Text>
             <TextInput
-              style={styles.setupInput}
+              style={[styles.setupInput, errors.width && styles.setupInputError]}
               value={width}
-              onChangeText={setWidth}
+              onChangeText={(txt) => {
+                // Strip negative signs and non-numeric characters immediately
+                const sanitized = txt.replace(/[^0-9.]/g, '');
+                setWidth(sanitized);
+                setErrors((prev) => ({ ...prev, width: undefined }));
+              }}
               keyboardType="numeric"
               placeholder="30"
               placeholderTextColor={colors.textMuted}
             />
+            {errors.width && <Text style={styles.errorText}>{errors.width}</Text>}
           </View>
           <View style={styles.setupField}>
             <Text style={styles.setupLabel}>Height (ft)</Text>
             <TextInput
-              style={styles.setupInput}
+              style={[styles.setupInput, errors.height && styles.setupInputError]}
               value={height}
-              onChangeText={setHeight}
+              onChangeText={(txt) => {
+                const sanitized = txt.replace(/[^0-9.]/g, '');
+                setHeight(sanitized);
+                setErrors((prev) => ({ ...prev, height: undefined }));
+              }}
               keyboardType="numeric"
               placeholder="20"
               placeholderTextColor={colors.textMuted}
             />
+            {errors.height && <Text style={styles.errorText}>{errors.height}</Text>}
           </View>
         </View>
 
@@ -806,5 +878,38 @@ const styles = StyleSheet.create({
     height: 20,
     backgroundColor: 'rgba(255,255,255,0.15)',
     marginHorizontal: spacing.xs,
+  },
+  workspaceHeader: {
+    position: 'absolute',
+    top: spacing.lg,
+    left: sizes.sidebarWidth + spacing.lg, // next to the sidebar
+    zIndex: 1000,
+    backgroundColor: 'rgba(26, 29, 41, 0.85)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderDark,
+  },
+  workspaceTitle: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 14,
+    letterSpacing: 0.5,
+  },
+  workspaceSubtitle: {
+    color: colors.textMuted,
+    fontSize: 10,
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  setupInputError: {
+    borderColor: colors.danger,
+  },
+  errorText: {
+    color: colors.danger,
+    fontSize: 10,
+    marginTop: 4,
+    fontWeight: '600',
   },
 });
