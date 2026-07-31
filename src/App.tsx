@@ -47,6 +47,7 @@ export default function App() {
   const [showTableMenu, setShowTableMenu] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [zoomPercent, setZoomPercent] = useState(100);
+  const [isRotationLocked, setIsRotationLocked] = useState(false); // New lock rotation state
 
   // ── Canvas pan, zoom & rotation shared values ──
   const scale = useSharedValue(1);
@@ -136,7 +137,9 @@ export default function App() {
       savedScale.value = scale.value;
     });
 
+  // Disable rotation gesture when locked
   const parentRotate = Gesture.Rotation()
+    .enabled(!isRotationLocked)
     .onUpdate(e => {
       canvasRotation.value = savedCanvasRotation.value + e.rotation;
     })
@@ -327,6 +330,8 @@ export default function App() {
           onZoomIn={() => zoomBy(1 / 0.85)}
           onReset={resetView}
           onFit={fitToScreen}
+          isRotationLocked={isRotationLocked}
+          onToggleRotationLock={() => setIsRotationLocked(prev => !prev)}
         />
       </View>
     </GestureHandlerRootView>

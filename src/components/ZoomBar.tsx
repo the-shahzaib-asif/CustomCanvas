@@ -8,6 +8,8 @@ interface ZoomBarProps {
   onZoomIn: () => void;
   onReset: () => void;
   onFit: () => void;
+  isRotationLocked: boolean;
+  onToggleRotationLock: () => void;
 }
 
 export default function ZoomBar({
@@ -16,6 +18,8 @@ export default function ZoomBar({
   onZoomIn,
   onReset,
   onFit,
+  isRotationLocked,
+  onToggleRotationLock,
 }: ZoomBarProps) {
   return (
     <View style={styles.zoomBar}>
@@ -31,6 +35,13 @@ export default function ZoomBar({
       <View style={styles.zoomDivider} />
       <Pressable style={styles.zoomBtn} onPress={onFit}>
         <Text style={styles.zoomBtnTextSmall}>⛶</Text>
+      </Pressable>
+      <View style={styles.zoomDivider} />
+      <Pressable 
+        style={[styles.zoomBtn, isRotationLocked && styles.activeLockBtn]} 
+        onPress={onToggleRotationLock}
+      >
+        <Text style={styles.zoomBtnTextSmall}>{isRotationLocked ? '🔒' : '🔓'}</Text>
       </Pressable>
     </View>
   );
@@ -58,18 +69,38 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: radius.full,
-    backgroundColor: 'rgba(255,255,255,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
-  zoomBtnText: { color: colors.textOnDark, fontSize: 18, fontWeight: '600', marginTop: -2 },
-  zoomBtnTextSmall: { color: colors.textOnDark, fontSize: 14, fontWeight: '600' },
-  zoomLabelWrap: { paddingHorizontal: spacing.md },
-  zoomLabelText: { color: colors.textOnDark, fontSize: 13, fontWeight: '700' },
+  activeLockBtn: {
+    backgroundColor: 'rgba(240, 89, 42, 0.25)', // Bookme orange tint background when locked
+  },
+  zoomBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  zoomBtnTextSmall: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  zoomLabelWrap: {
+    paddingHorizontal: spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 48,
+  },
+  zoomLabelText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   zoomDivider: {
     width: 1,
-    height: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    marginHorizontal: spacing.xs,
+    height: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    marginHorizontal: 2,
   },
 });
