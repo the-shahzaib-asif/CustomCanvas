@@ -53,6 +53,14 @@ export default function Shape({
   const rotation = useSharedValue(0);
   const savedRotation = useSharedValue(0);
 
+  // Sync rotation from parent state when rotated via top-of-screen toolbar
+  React.useEffect(() => {
+    if (item.rotation !== undefined) {
+      rotation.value = withTiming(item.rotation, { duration: 150 });
+      savedRotation.value = item.rotation;
+    }
+  }, [item.rotation, rotation, savedRotation]);
+
   // Drag — only when selected, always clamped to the LOGICAL canvas bounds
   const pan = Gesture.Pan()
     .enabled(selected)
@@ -95,8 +103,20 @@ export default function Shape({
         }
       }
 
-      x.value = Math.max(leftMargin, Math.min(nextX, canvasWidth - itemWidth - rightMargin));
-      y.value = Math.max(topMargin, Math.min(nextY, canvasHeight - itemHeight - bottomMargin));
+      // Calculate visual bounding box width & height when the table itself is rotated
+      const cosR = Math.abs(Math.cos(rotation.value));
+      const sinR = Math.abs(Math.sin(rotation.value));
+      const itemWidthRot = itemWidth * cosR + itemHeight * sinR;
+      const itemHeightRot = itemWidth * sinR + itemHeight * cosR;
+
+      // Map limits back to x.value and y.value (which translate the top-left of the unrotated element)
+      const minX = leftMargin - itemWidth / 2 + itemWidthRot / 2;
+      const maxX = canvasWidth - rightMargin - itemWidth / 2 - itemWidthRot / 2;
+      const minY = topMargin - itemHeight / 2 + itemHeightRot / 2;
+      const maxY = canvasHeight - bottomMargin - itemHeight / 2 - itemHeightRot / 2;
+
+      x.value = Math.max(minX, Math.min(nextX, maxX));
+      y.value = Math.max(minY, Math.min(nextY, maxY));
     });
 
   const rotate = Gesture.Rotation()
@@ -185,17 +205,6 @@ export default function Shape({
             )}
           </Pressable>
         </Animated.View>
-
-        {selected && (
-          <Animated.View style={[styles.toolbarAbsolute, toolbarStyle]} pointerEvents="box-none">
-            <Pressable style={styles.toolbarBtn} onPress={handleRotateButton}>
-              <Text style={styles.toolbarBtnText}>🔄</Text>
-            </Pressable>
-            <Pressable style={[styles.toolbarBtn, styles.deleteBtnSpec]} onPress={onDelete}>
-              <Text style={styles.deleteBtnTextSpec}>🗑️</Text>
-            </Pressable>
-          </Animated.View>
-        )}
       </View>
     </GestureDetector>
   );

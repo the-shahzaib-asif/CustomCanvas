@@ -210,6 +210,16 @@ export default function App() {
     setSelectedId(null);
   };
 
+  const rotateShape = (id: string) => {
+    setShapes(prev => prev.map(s => {
+      if (s.id === id) {
+        const currentRot = s.rotation || 0;
+        return { ...s, rotation: currentRot + Math.PI / 2 }; // Rotate by 90 degrees
+      }
+      return s;
+    }));
+  };
+
   const clearCanvas = () => {
     setShapes([]);
     setSelectedId(null);
@@ -235,6 +245,8 @@ export default function App() {
     );
   }
 
+  const selectedShape = shapes.find(s => s.id === selectedId);
+
   return (
     <GestureHandlerRootView style={styles.container}>
       {/* Sidebar Drawer Panel */}
@@ -257,6 +269,9 @@ export default function App() {
           floorName={floorName}
           widthFt={floorWidthFt}
           heightFt={floorHeightFt}
+          selectedShape={selectedShape}
+          onRotate={() => selectedId && rotateShape(selectedId)}
+          onDelete={() => selectedId && deleteShape(selectedId)}
         />
 
         {/* Viewport canvas area gestures */}
