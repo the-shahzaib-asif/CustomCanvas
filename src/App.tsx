@@ -14,6 +14,7 @@ import NewFloorSetup from './components/NewFloorSetup';
 import ZoomBar from './components/ZoomBar';
 import WorkspaceHeader from './components/WorkspaceHeader';
 import FloorCanvas from './components/FloorCanvas';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { ShapeItem, SeaterType } from './components/CanvasElement';
 import { colors, sizes } from './theme';
 
@@ -221,6 +222,24 @@ export default function App() {
     setShowTableMenu(false);
   };
 
+  const addImage = () => {
+    launchImageLibrary({ mediaType: 'photo', quality: 1 }, response => {
+      if (response.didCancel || response.errorMessage) {
+        return;
+      }
+      const uri = response.assets?.[0]?.uri;
+      if (uri) {
+        const newImage: ShapeItem = {
+          id: Date.now().toString(),
+          type: 'Image',
+          imageUri: uri,
+        };
+        setShapes(prev => [...prev, newImage]);
+        setSelectedId(newImage.id); // Select the placed image immediately
+      }
+    });
+  };
+
   const deleteShape = (id: string) => {
     setShapes(prev => prev.filter(s => s.id !== id));
     setSelectedId(null);
@@ -271,7 +290,7 @@ export default function App() {
           showTableMenu={showTableMenu}
           onTablesPress={() => setShowTableMenu(prev => !prev)}
           onSelectSeater={addTable}
-          onImagePress={() => {}} // Handle photo insertions if needed
+          onImagePress={addImage}
           onClearPress={clearCanvas}
           onNewFloorPress={resetFloor}
           isSidebarOpen={isSidebarOpen}
