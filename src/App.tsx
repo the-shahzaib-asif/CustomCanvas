@@ -50,6 +50,8 @@ export default function App() {
 
   // ── Canvas pan, zoom & rotation shared values ──
   const scale = useSharedValue(1);
+  const fitScaleShared = useSharedValue(1); // Calibration base value
+
   const panX = useSharedValue(0);
   const panY = useSharedValue(0);
   const canvasRotation = useSharedValue(0);
@@ -58,11 +60,17 @@ export default function App() {
   const savedPanY = useSharedValue(0);
   const savedCanvasRotation = useSharedValue(0);
 
+  // Keep fitScaleShared synced with fitScale state calculation
+  useEffect(() => {
+    fitScaleShared.value = fitScale;
+  }, [fitScale]);
+
   // Sidebar slide offset
   const sidebarTranslateX = useSharedValue(0);
 
+  // Convert absolute Reanimated scale to dynamic user-friendly percentage relative to fitScale
   useAnimatedReaction(
-    () => Math.round(scale.value * 100),
+    () => Math.round((scale.value / fitScaleShared.value) * 100),
     (current, previous) => {
       if (current !== previous) {
         runOnJS(setZoomPercent)(current);
@@ -113,11 +121,14 @@ export default function App() {
       savedPanY.value = panY.value;
     });
 
+  // Zoom limits relative to fitScale (50% min, 200% max)
   const parentPinch = Gesture.Pinch()
     .onChange(e => {
-      const next = Math.min(MAX_ZOOM, Math.max(dynamicMinZoom, scale.value * e.scaleChange));
-      scale.value = next;
-      const clamped = clampPan(panX.value, panY.value, next);
+      const next = scale.value * e.scaleChange;
+      const minZoom = fitScaleShared.value * 0.5; // 50%
+      const maxZoom = fitScaleShared.value * 2.0; // 200%
+      scale.value = Math.min(maxZoom, Math.max(minZoom, next));
+      const clamped = clampPan(panX.value, panY.value, scale.value);
       panX.value = clamped.x;
       panY.value = clamped.y;
     })
@@ -151,10 +162,13 @@ export default function App() {
 
   // ── Zoom Bar Functions ──
   const zoomBy = (factor: number) => {
-    const next = Math.min(MAX_ZOOM, Math.max(dynamicMinZoom, scale.value * factor));
-    scale.value = withTiming(next, { duration: 150 });
-    savedScale.value = next;
-    const clamped = clampPan(panX.value, panY.value, next);
+    const next = scale.value * factor;
+    const minZoom = fitScaleShared.value * 0.5; // 50%
+    const maxZoom = fitScaleShared.value * 2.0; // 200%
+    const clampedScale = Math.min(maxZoom, Math.max(minZoom, next));
+    scale.value = withTiming(clampedScale, { duration: 150 });
+    savedScale.value = clampedScale;
+    const clamped = clampPan(panX.value, panY.value, clampedScale);
     panX.value = withTiming(clamped.x, { duration: 150 });
     panY.value = withTiming(clamped.y, { duration: 150 });
     savedPanX.value = clamped.x;
@@ -162,23 +176,22 @@ export default function App() {
   };
 
   const resetView = () => {
-    scale.value = withTiming(1, { duration: 200 });
+    scale.value = withTiming(fitScale, { duration: 200 }); // reset to 100% zoom (fitScale)
     panX.value = withTiming(0, { duration: 200 });
     panY.value = withTiming(0, { duration: 200 });
     canvasRotation.value = withTiming(0, { duration: 200 });
-    savedScale.value = 1;
+    savedScale.value = fitScale;
     savedPanX.value = 0;
     savedPanY.value = 0;
     savedCanvasRotation.value = 0;
   };
 
   const fitToScreen = () => {
-    const clampedFitScale = Math.max(dynamicMinZoom, Math.min(fitScale, MAX_ZOOM));
-    scale.value = withTiming(clampedFitScale, { duration: 250 });
+    scale.value = withTiming(fitScale, { duration: 250 });
     panX.value = withTiming(0, { duration: 250 });
     panY.value = withTiming(0, { duration: 250 });
     canvasRotation.value = withTiming(0, { duration: 250 });
-    savedScale.value = clampedFitScale;
+    savedScale.value = fitScale;
     savedPanX.value = 0;
     savedPanY.value = 0;
     savedCanvasRotation.value = 0;
