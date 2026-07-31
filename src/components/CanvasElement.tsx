@@ -1,4 +1,3 @@
-// components/CanvasElement.tsx
 import React from 'react';
 import { StyleSheet, View, Pressable, Text, Image } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
@@ -286,4 +285,4 @@ const styles = StyleSheet.create({
   deleteBtnSpec: { backgroundColor: 'rgba(239, 68, 68, 0.15)' },
   deleteBtnTextSpec: { fontSize: 12 },
 });
-
+

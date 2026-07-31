@@ -1,4 +1,3 @@
-// components/ZoomBar.tsx
 import React from 'react';
 import { StyleSheet, View, Pressable, Text } from 'react-native';
 import { colors, spacing, radius } from '../theme';

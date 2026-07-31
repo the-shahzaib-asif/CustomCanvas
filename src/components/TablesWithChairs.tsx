@@ -1,4 +1,3 @@
-// components/TablesWithChairs.tsx
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { colors, radius, sizes } from '../theme';

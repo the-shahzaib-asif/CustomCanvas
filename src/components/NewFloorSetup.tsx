@@ -1,4 +1,3 @@
-// components/NewFloorSetup.tsx
 import React, { useState } from 'react';
 import {
   StyleSheet,
